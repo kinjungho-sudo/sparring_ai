@@ -7,15 +7,14 @@ export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request)
   const { pathname } = request.nextUrl
 
-  // 관리자 페이지 접근 제어
   if (pathname.startsWith('/admin')) {
     if (!user || !ADMIN_WHITELIST.includes(user.email ?? '')) {
       return NextResponse.rewrite(new URL('/403', request.url))
     }
   }
 
-  // /debate 페이지는 로그인 필수 (샘플은 API로 별도 처리)
-  if (pathname.startsWith('/debate') && !user) {
+  // /debate/new, /account 는 로그인 필수
+  if ((pathname === '/debate/new' || pathname.startsWith('/account')) && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname)

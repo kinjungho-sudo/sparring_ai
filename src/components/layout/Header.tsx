@@ -46,9 +46,13 @@ export default function Header() {
 
         {user ? (
           <div className="flex items-center gap-3">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <Link
+              href="/account"
+              className="text-xs transition-colors hover:opacity-80"
+              style={{ color: 'var(--text-muted)' }}
+            >
               {user.email}
-            </span>
+            </Link>
             <button
               onClick={handleSignOut}
               className="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
