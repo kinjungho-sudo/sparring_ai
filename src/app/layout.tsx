@@ -22,11 +22,13 @@ export const metadata: Metadata = {
     siteName: '스파링 AI',
     title: '스파링 AI — 의사결정 보조 AI 토론',
     description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다.',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: '스파링 AI' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: '스파링 AI — 의사결정 보조 AI 토론',
     description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다.',
+    images: ['/opengraph-image'],
   },
   robots: {
     index: true,

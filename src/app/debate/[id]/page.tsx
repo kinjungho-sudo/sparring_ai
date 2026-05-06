@@ -1,9 +1,45 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import DebateArena from '@/components/debate/DebateArena'
 import type { Debate } from '@/types'
 
-export default async function DebatePage({ params }: { params: Promise<{ id: string }> }) {
+interface Props { params: Promise<{ id: string }> }
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: debate } = await supabase
+    .from('sparring_debates')
+    .select('topic, is_public')
+    .eq('id', id)
+    .single()
+
+  if (!debate?.is_public) return {}
+
+  const title = `"${debate.topic}" — 스파링 AI 토론`
+  const description = 'AI 두 명이 찬반으로 격돌한 토론 결과를 확인해보세요.'
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `/debate/${id}`,
+      images: [{ url: `/debate/${id}/opengraph-image`, width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`/debate/${id}/opengraph-image`],
+    },
+  }
+}
+
+export default async function DebatePage({ params }: Props) {
   const { id } = await params
   const supabase = await createClient()
 
@@ -15,10 +51,15 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
 
   if (error || !debate) notFound()
 
-  // 본인 토론만 접근 가능 (샘플 제외)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!debate.is_sample && debate.user_id && debate.user_id !== user?.id) {
-    redirect('/login')
+
+  // 접근 권한: 공개 토론 or 본인 토론 or 샘플
+  const canAccess = debate.is_public || debate.is_sample || (user && debate.user_id === user.id)
+  if (!canAccess) {
+    if (!user) {
+      redirect(`/login?redirect=/debate/${id}`)
+    }
+    redirect('/')
   }
 
   return <DebateArena debate={debate as Debate} />
