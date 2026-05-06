@@ -3,9 +3,39 @@ import './globals.css'
 import Header from '@/components/layout/Header'
 import { LanguageProvider } from '@/contexts/LanguageContext'
 
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sparring-ai.vercel.app'
+
 export const metadata: Metadata = {
-  title: '스파링 AI — 의사결정 보조 AI 토론 서비스',
-  description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다.',
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: '스파링 AI — 의사결정 보조 AI 토론',
+    template: '%s | 스파링 AI',
+  },
+  description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다. 매일 3회 무료.',
+  keywords: ['AI 토론', '의사결정', '찬반 토론', '스파링 AI', 'AI 디베이트'],
+  authors: [{ name: '스파링 AI' }],
+  creator: '스파링 AI',
+  openGraph: {
+    type: 'website',
+    locale: 'ko_KR',
+    url: BASE_URL,
+    siteName: '스파링 AI',
+    title: '스파링 AI — 의사결정 보조 AI 토론',
+    description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '스파링 AI — 의사결정 보조 AI 토론',
+    description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
 }
 
 export default function RootLayout({
