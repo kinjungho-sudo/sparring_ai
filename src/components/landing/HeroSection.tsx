@@ -17,38 +17,31 @@ export default function HeroSection() {
       />
 
       <div className="relative z-10 max-w-3xl mx-auto">
-        {/* 상황 태그 */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {['스타트업 PM', '기획자', '1인 기업가', '투자자'].map((tag) => (
-            <span
-              key={tag}
-              className="text-xs font-bold px-3 py-1 rounded-full border"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
-            >
-              {tag}
-            </span>
-          ))}
+        {/* 서비스 유형 뱃지 */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border mb-8"
+          style={{ borderColor: 'rgba(99,102,241,0.3)', backgroundColor: 'rgba(99,102,241,0.08)' }}>
+          <span className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--accent)' }}>AI COACHING</span>
         </div>
 
         <h1
           className="font-black tracking-tight mb-6 leading-tight"
           style={{
-            fontSize: 'clamp(36px, 6vw, 72px)',
+            fontSize: 'clamp(32px, 5.5vw, 68px)',
             color: 'var(--text-primary)',
             letterSpacing: '-0.04em',
           }}
         >
           {language === 'ko' ? (
-            <>당신의 기획안에<br /><span style={{ color: 'var(--accent)' }}>임원이 던질 반론</span>을<br />AI가 먼저 던집니다</>
+            <><span style={{ color: 'var(--accent)' }}>의사결정 보조</span>이자,<br />토론형 AI 코칭 서비스</>
           ) : (
-            <>Your proposal will face<br /><span style={{ color: 'var(--accent)' }}>executive pushback</span><br />— from AI first</>
+            <>Your <span style={{ color: 'var(--accent)' }}>AI Decision Coach</span><br />powered by debate</>
           )}
         </h1>
 
-        <p className="text-lg mb-10" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+        <p className="text-base sm:text-lg mb-10 max-w-xl mx-auto" style={{ color: 'var(--text-secondary)', lineHeight: 1.75 }}>
           {t(
-            '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다.',
-            'While two AIs clash for and against, you arrive at your own conclusion.'
+            '두 AI가 찬반으로 격돌하며 당신의 생각을 단련합니다. 스스로 결론에 도달하는 가장 빠른 방법.',
+            'Two AIs clash for and against, sharpening your thinking. The fastest path to your own conclusion.'
           )}
         </p>
 

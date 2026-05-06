@@ -8,6 +8,7 @@ interface MessageBubbleProps {
   hasFactError: boolean
   factErrorNote: string | null
   isStreaming?: boolean
+  index?: number
 }
 
 export default function MessageBubble({
@@ -18,14 +19,19 @@ export default function MessageBubble({
   hasFactError,
   factErrorNote,
   isStreaming,
+  index = 0,
 }: MessageBubbleProps) {
   const isRed = speaker === 'red'
   const isBlue = speaker === 'blue'
   const isHost = speaker === 'host'
+  const delay = Math.min(index * 40, 300)
 
   if (isHost) {
     return (
-      <div className="flex justify-center my-3">
+      <div
+        className="flex justify-center my-3 animate-fade-slide-in"
+        style={{ animationDelay: `${delay}ms` }}
+      >
         <div
           className="px-4 py-2 rounded-xl text-xs font-semibold"
           style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--gold)', border: '1px solid rgba(245, 158, 11, 0.2)' }}
@@ -37,11 +43,16 @@ export default function MessageBubble({
   }
 
   return (
-    <div className={`flex ${isBlue ? 'justify-end' : 'justify-start'} mb-4`}>
-      <div className="max-w-[85%]">
+    <div
+      className={`flex ${isBlue ? 'justify-end' : 'justify-start'} mb-4 animate-fade-slide-in`}
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="max-w-[92%] sm:max-w-[85%]">
         {/* 라벨 */}
-        <div className={`text-xs font-black mb-1.5 ${isBlue ? 'text-right' : 'text-left'}`}
-          style={{ color: isRed ? 'var(--red)' : 'var(--blue)' }}>
+        <div
+          className={`text-xs font-black mb-1.5 ${isBlue ? 'text-right' : 'text-left'}`}
+          style={{ color: isRed ? 'var(--red)' : 'var(--blue)' }}
+        >
           {isRed ? '🔴 RED (찬성)' : '🔵 BLUE (반대)'}
           {isFinalRound && <span className="ml-2 opacity-60">· 최종 발언</span>}
         </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { saveMessage } from '@/lib/db/messages'
+import { saveMessage, updateMessageFactError } from '@/lib/db/messages'
 import { completeDebate } from '@/lib/db/debates'
 import { saveReport } from '@/lib/db/reports'
 import type { Speaker } from '@/types'
@@ -37,8 +37,17 @@ export async function POST(req: NextRequest) {
         next_question: body.next_question,
         fact_errors: body.fact_errors,
         convergence_note: body.convergence_note,
+        speech_summaries: body.speech_summaries,
+        key_points: body.key_points,
+        fact_checks: body.fact_checks,
+        verdict: body.verdict,
       })
       return NextResponse.json({ report })
+    }
+
+    if (body.action === 'update_fact_error') {
+      await updateMessageFactError(body.message_id, body.fact_error_note)
+      return NextResponse.json({ ok: true })
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })

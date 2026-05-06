@@ -186,6 +186,8 @@ export function useDebate(): UseDebateReturn {
       totalRounds: debate.rounds,
       language,
       history,
+      red_config: debate.debate_config?.red,
+      blue_config: debate.debate_config?.blue,
     }
 
     try {
@@ -318,6 +320,10 @@ export function useDebate(): UseDebateReturn {
               next_question: report.next_question ?? null,
               fact_errors: report.fact_errors ?? null,
               convergence_note: report.convergence_note ?? null,
+              speech_summaries: report.speech_summaries ?? null,
+              key_points: report.key_points ?? null,
+              fact_checks: report.fact_checks ?? null,
+              verdict: report.verdict ?? null,
             }),
           }).catch(() => {})
         }
@@ -333,6 +339,15 @@ export function useDebate(): UseDebateReturn {
               status: earlyEnd ? 'early_end' : 'completed',
             }),
           })
+        }
+
+        // 완료 이메일 전송 (fire-and-forget, 실패해도 무시)
+        if (debate.id && !debate.is_sample) {
+          fetch('/api/debate/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ debate_id: debate.id, report }),
+          }).catch(() => {})
         }
 
         setIsComplete(true)

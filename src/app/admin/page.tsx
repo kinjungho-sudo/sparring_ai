@@ -1,5 +1,14 @@
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
+
+const ADMIN_WHITELIST = (process.env.ADMIN_WHITELIST || '').split(',').map(e => e.trim())
+
+async function requireAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || !ADMIN_WHITELIST.includes(user.email ?? '')) redirect('/403')
+}
 
 async function getDashboardStats() {
   const supabase = await createServiceClient()
@@ -31,6 +40,7 @@ const navItems = [
 ]
 
 export default async function AdminPage() {
+  await requireAdmin()
   const stats = await getDashboardStats()
 
   const cards = [

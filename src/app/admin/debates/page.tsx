@@ -1,7 +1,13 @@
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
+const ADMIN_WHITELIST = (process.env.ADMIN_WHITELIST || '').split(',').map(e => e.trim())
+
 export default async function DebatesPage() {
+  const { data: { user } } = await (await createClient()).auth.getUser()
+  if (!user || !ADMIN_WHITELIST.includes(user.email ?? '')) redirect('/403')
+
   const supabase = await createServiceClient()
 
   const { data: debates } = await supabase

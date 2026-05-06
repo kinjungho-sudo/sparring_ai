@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
 import { LanguageProvider } from '@/contexts/LanguageContext'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sparring-ai.vercel.app'
@@ -51,6 +52,7 @@ export default function RootLayout({
         <LanguageProvider>
           <Header />
           <main className="flex-1">{children}</main>
+          <Footer />
         </LanguageProvider>
       </body>
     </html>

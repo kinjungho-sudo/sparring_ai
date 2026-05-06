@@ -16,6 +16,7 @@ export interface Debate {
   status: DebateStatus
   created_at: string
   completed_at: string | null
+  debate_config?: DebateConfig | null
 }
 
 export interface Message {
@@ -34,6 +35,12 @@ export interface Message {
 export interface Report {
   id: string
   debate_id: string
+  /** new structured fields */
+  speech_summaries: Array<{ speaker: string; round: number; summary: string }> | null
+  key_points: string[] | null
+  fact_checks: Array<{ speaker: string; note: string | null }> | null
+  verdict: { winner: 'red' | 'blue' | null; reason?: string | null; conclusion?: string | null } | null
+  /** legacy fields */
   red_summary: string | null
   blue_summary: string | null
   new_perspectives: string[] | null
@@ -52,6 +59,15 @@ export interface Usage {
 }
 
 export interface ReportData {
+  speech_summaries?: Array<{ speaker: string; round: number; summary: string }> | null
+  key_points?: string[] | null
+  fact_checks?: Array<{ speaker: string; note: string | null }> | null
+  verdict?: {
+    winner: 'red' | 'blue' | null
+    reason?: string | null
+    conclusion?: string | null
+  } | null
+  /** @deprecated legacy fields kept for backward-compat when loading old saved reports */
   red_summary?: string | null
   blue_summary?: string | null
   new_perspectives?: string[] | null
@@ -66,6 +82,19 @@ export interface ValidateResult {
   is_sensitive: boolean
   topic_type: TopicType
   message: string
+}
+
+export type DebaterTone = 'assertive' | 'analytical' | 'emotional' | 'socratic'
+
+export interface DebaterConfig {
+  persona?: string
+  tone?: DebaterTone
+  key_argument?: string
+}
+
+export interface DebateConfig {
+  red?: DebaterConfig
+  blue?: DebaterConfig
 }
 
 export interface DebateState {

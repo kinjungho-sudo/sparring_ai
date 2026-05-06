@@ -1,11 +1,17 @@
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
+
+const ADMIN_WHITELIST = (process.env.ADMIN_WHITELIST || '').split(',').map(e => e.trim())
 
 const INPUT_COST_PER_1M = 3.0
 const OUTPUT_COST_PER_1M = 15.0
 const AVG_INPUT_RATIO = 0.7
 
 export default async function ApiCostPage() {
+  const { data: { user } } = await (await createClient()).auth.getUser()
+  if (!user || !ADMIN_WHITELIST.includes(user.email ?? '')) redirect('/403')
+
   const supabase = await createServiceClient()
 
   const { data: messages } = await supabase

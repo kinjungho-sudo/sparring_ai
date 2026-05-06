@@ -17,10 +17,10 @@ export default async function HomePage() {
     <>
       <HeroSection />
       <SocialProofSection debateCount={count ?? 0} />
-      <HowItWorksSection />
-      <SampleDebateSection />
-      <PricingSection />
-      <FAQSection />
+      <section id="how-it-works"><HowItWorksSection /></section>
+      <section id="sample"><SampleDebateSection /></section>
+      <section id="pricing"><PricingSection /></section>
+      <section id="faq"><FAQSection /></section>
     </>
   )
 }

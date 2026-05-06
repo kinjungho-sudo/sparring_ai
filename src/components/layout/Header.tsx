@@ -28,11 +28,18 @@ export default function Header() {
       className="sticky top-0 z-50 flex items-center justify-between px-6 h-16 border-b"
       style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}
     >
-      <Link href="/" className="flex items-center gap-2">
-        <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
-          ⚡ 스파링 AI
-        </span>
-      </Link>
+      <div className="flex items-center gap-6">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            ⚡ 스파링 AI
+          </span>
+        </Link>
+        <nav className="hidden md:flex items-center gap-5">
+          <Link href="/#how-it-works" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>서비스 소개</Link>
+          <Link href="/#pricing" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>요금제</Link>
+          <Link href="/#faq" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>FAQ</Link>
+        </nav>
+      </div>
 
       <div className="flex items-center gap-3">
         {/* 언어 토글 */}

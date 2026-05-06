@@ -1,6 +1,8 @@
 import { createServiceClient } from '@/lib/supabase/server'
 
-const DAILY_LIMIT = 3
+const DAILY_LIMIT = process.env.DAILY_LIMIT ? parseInt(process.env.DAILY_LIMIT) : 3
+// DAILY_LIMIT=0 이면 무제한 (테스트 기간)
+const IS_UNLIMITED = DAILY_LIMIT === 0
 
 export async function checkAndIncrementUsage(userId: string): Promise<{ allowed: boolean; count: number }> {
   const supabase = await createServiceClient()
@@ -13,7 +15,7 @@ export async function checkAndIncrementUsage(userId: string): Promise<{ allowed:
     .eq('date', today)
     .single()
 
-  if (existing && existing.count >= DAILY_LIMIT) {
+  if (!IS_UNLIMITED && existing && existing.count >= DAILY_LIMIT) {
     return { allowed: false, count: existing.count }
   }
 

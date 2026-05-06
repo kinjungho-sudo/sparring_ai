@@ -1,4 +1,11 @@
-import type { Language } from '@/types'
+import type { Language, DebaterConfig, DebaterTone } from '@/types'
+
+const TONE_LABELS: Record<DebaterTone, string> = {
+  assertive:  '단호하고 공격적인 어조로 발언하세요. 약점을 직접 찌르고 확신에 차게 주장합니다.',
+  analytical: '데이터와 논리 중심의 분석적 어조로 발언하세요. 감정 없이 근거를 체계적으로 제시합니다.',
+  emotional:  '감성적이고 공감 중심의 어조로 발언하세요. 사례와 스토리를 활용해 설득합니다.',
+  socratic:   '소크라테스식 어조로 발언하세요. 상대방에게 질문을 던져 모순을 스스로 인식하게 유도합니다.',
+}
 
 interface PromptContext {
   topic: string
@@ -6,6 +13,17 @@ interface PromptContext {
   totalRounds: number
   language: Language
   history: Array<{ speaker: string; content: string }>
+  config?: DebaterConfig
+}
+
+function buildPersonaBlock(config?: DebaterConfig): string {
+  if (!config) return ''
+  const lines: string[] = []
+  if (config.persona) lines.push(`- 페르소나: ${config.persona}`)
+  if (config.tone) lines.push(`- 어조: ${TONE_LABELS[config.tone]}`)
+  if (config.key_argument) lines.push(`- 핵심 주장: 아래 논점을 반드시 포함하여 주장을 전개하세요.\n  "${config.key_argument}"`)
+  if (lines.length === 0) return ''
+  return `\n[커스텀 설정]\n${lines.join('\n')}\n`
 }
 
 function buildHistory(history: Array<{ speaker: string; content: string }>) {
@@ -30,7 +48,7 @@ export function buildRedPrompt(ctx: PromptContext): string {
 [역할]
 당신은 스파링 AI의 RED입니다.
 의제 "${ctx.topic}"에 대해 오직 찬성 입장을 대변합니다.
-
+${buildPersonaBlock(ctx.config)}
 [절대 규칙]
 1. 절대로 중립적 발언 금지
 2. 절대로 반대 입장 표명 금지
@@ -39,7 +57,8 @@ export function buildRedPrompt(ctx: PromptContext): string {
 5. 상대방 인신공격 금지 (논리 공격만 허용)
 
 [발언 규칙]
-- 발언당 150~200자 (한국어 기준), 영어는 100~150단어
+- 발언당 200~300자 (한국어 기준), 영어는 150~200단어
+- 반드시 지정된 글자 수 범위 내에 완결된 문장으로 마무리할 것. 문장이 잘리지 않도록 스스로 요약하여 마무리하세요.
 - 상대방 질문이나 반박에는 반드시 1차적으로 정확하게 답변한 후 반론 전개
 - 근거 없는 주장, 검증되지 않은 수치, 헛소리 발언 금지
 - 매 발언에 논리적 근거 1개 이상 포함
@@ -73,7 +92,7 @@ export function buildBluePrompt(ctx: PromptContext): string {
 [역할]
 당신은 스파링 AI의 BLUE입니다.
 의제 "${ctx.topic}"에 대해 오직 반대 입장을 대변합니다.
-
+${buildPersonaBlock(ctx.config)}
 [절대 규칙]
 1. 절대로 중립적 발언 금지
 2. 절대로 찬성 입장 표명 금지
@@ -82,7 +101,8 @@ export function buildBluePrompt(ctx: PromptContext): string {
 5. 상대방 인신공격 금지 (논리 공격만 허용)
 
 [발언 규칙]
-- 발언당 150~200자 (한국어 기준), 영어는 100~150단어
+- 발언당 200~300자 (한국어 기준), 영어는 150~200단어
+- 반드시 지정된 글자 수 범위 내에 완결된 문장으로 마무리할 것. 문장이 잘리지 않도록 스스로 요약하여 마무리하세요.
 - 상대방 질문이나 반박에는 반드시 1차적으로 정확하게 답변한 후 반론 전개
 - 근거 없는 주장, 검증되지 않은 수치, 헛소리 발언 금지
 - 매 발언에 논리적 근거 1개 이상 포함
@@ -155,6 +175,7 @@ export function buildReportPrompt(
   messages: Array<{ speaker: string; content: string; has_fact_error: boolean; fact_error_note?: string | null }>,
   language: Language
 ): string {
+  const lang = language === 'ko' ? '한국어' : '영어'
   const transcript = messages
     .map((m) => {
       const label = m.speaker === 'red' ? 'RED(찬성)' : m.speaker === 'blue' ? 'BLUE(반대)' : 'HOST(사회자)'
@@ -162,6 +183,8 @@ export function buildReportPrompt(
       return `${label}: ${m.content}${error}`
     })
     .join('\n\n')
+
+  const factErrors = messages.filter((m) => m.has_fact_error)
 
   return `[사회자 역할]
 당신은 스파링 AI의 사회자입니다. 어느 쪽 편도 들지 않습니다.
@@ -173,30 +196,28 @@ ${topic}
 ${transcript}
 
 [임무]
-아래 형식의 사고확장 리포트를 ${language === 'ko' ? '한국어' : '영어'}로 작성하세요.
+아래 JSON 형식으로 최종 결론 리포트를 ${lang}로 작성하세요.
+반드시 JSON만 출력하고 다른 텍스트는 절대 포함하지 마세요.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-사고확장 리포트
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[각 발언 요약]
-- RED 측 핵심 논거: ...
-- BLUE 측 핵심 논거: ...
-
-[당신이 발견한 것]
-- 기존에 보지 못했던 각도 2개
-  1. ...
-  2. ...
-- 주장에서 보완이 필요한 지점 1개: ...
-- 지금 당장 확인해볼 질문 1개: ...
-
-[팩트 오류 (있을 경우)]
-(없으면 이 섹션 생략)
-
-[수렴 판정 또는 미해결 지점]
-- 양측이 합의한 부분: ...
-- 끝까지 갈린 부분: ...
-━━━━━━━━━━━━━━━━━━━━━━━━━━`
+{
+  "speech_summaries": [
+    { "speaker": "red" | "blue", "round": 라운드번호(정수), "summary": "해당 발언의 핵심 한 줄 요약" },
+    ...
+  ],
+  "key_points": [
+    "RED와 BLUE 모두에서 등장한 핵심 논점 1 (1~2문장)",
+    "핵심 논점 2",
+    "핵심 논점 3"
+  ],
+  "fact_checks": ${factErrors.length > 0
+    ? JSON.stringify(factErrors.map(m => ({ speaker: m.speaker, note: m.fact_error_note })))
+    : '[]'},
+  "verdict": {
+    "winner": "red" | "blue" | null,
+    "reason": "우위가 있으면 1~2문장 근거, 없으면 null",
+    "conclusion": "결론이 없을 경우 양측 의견 정리 1~2문장 (winner가 null일 때 필수)"
+  }
+}`
 }
 
 export function buildHostInterventionPrompt(topic: string, reason: string, language: Language): string {

@@ -3,7 +3,7 @@ import { anthropic, MODEL, MAX_TOKENS } from '@/lib/ai/claude'
 import { buildRedPrompt } from '@/lib/ai/prompts'
 import { createClient } from '@/lib/supabase/server'
 import { logApiCall } from '@/lib/db/api-logs'
-import type { Language } from '@/types'
+import type { Language, DebaterConfig } from '@/types'
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as {
@@ -13,8 +13,9 @@ export async function POST(req: NextRequest) {
     totalRounds: number
     language: Language
     history: Array<{ speaker: string; content: string }>
+    red_config?: DebaterConfig
   }
-  const { debate_id, topic, currentRound, totalRounds, language, history } = body
+  const { debate_id, topic, currentRound, totalRounds, language, history, red_config } = body
 
   // Auth check: sample debates pass through; others require session + ownership
   if (debate_id) {
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const prompt = buildRedPrompt({ topic, currentRound, totalRounds, language, history })
+  const prompt = buildRedPrompt({ topic, currentRound, totalRounds, language, history, config: red_config })
 
   const startTime = Date.now()
   let streamError: string | null = null
