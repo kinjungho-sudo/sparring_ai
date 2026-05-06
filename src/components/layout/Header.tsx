@@ -31,7 +31,7 @@ export default function Header() {
       <div className="flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
-            ⚡ 스파링 AI
+            ⚡ Sparring AI
           </span>
         </Link>
         <nav className="hidden md:flex items-center gap-5">

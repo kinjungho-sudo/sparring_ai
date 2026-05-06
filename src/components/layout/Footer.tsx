@@ -10,7 +10,7 @@ export default function Footer() {
           {/* 브랜드 */}
           <div>
             <Link href="/" className="flex items-center gap-2 mb-2">
-              <span className="text-base font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>⚡ 스파링 AI</span>
+              <span className="text-base font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>⚡ Sparring AI</span>
             </Link>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               의사결정 보조 토론형 AI 코칭 서비스

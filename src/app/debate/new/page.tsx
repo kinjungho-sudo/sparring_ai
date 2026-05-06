@@ -194,8 +194,8 @@ export default function NewDebatePage() {
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder={t(
-              '예: "우리 팀이 B2B SaaS로 피벗하는 것은 올바른 결정이다"',
-              'e.g. "Pivoting our team to B2B SaaS is the right decision"'
+              '예: "AI가 인간의 일자리를 대체하는 것은 사회 발전이다"\n"주 4일제 근무는 생산성을 높인다"\n"SNS는 민주주의에 해롭다"',
+              'e.g. "AI replacing human jobs is social progress"\n"A 4-day work week improves productivity"\n"Social media is harmful to democracy"'
             )}
             className="w-full h-32 p-4 rounded-xl border text-sm resize-none outline-none focus:border-indigo-500 transition-colors"
             style={{

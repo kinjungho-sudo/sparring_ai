@@ -47,10 +47,10 @@ export default function HeroSection() {
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="#sample"
+            href="/debate/new"
             className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-colors inline-flex items-center justify-center"
           >
-            {t('무료로 체험해보기 →', 'Try for free →')}
+            {t('토론 시작하기 →', 'Start a debate →')}
           </Link>
           <Link
             href="/login"
