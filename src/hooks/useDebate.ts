@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import type { Debate, Message, Report, Language } from '@/types'
+import type { Debate, Message, Report, Language, ReportData } from '@/types'
 
 interface LocalMessage {
   id: string
+  dbId?: string  // DB UUID, populated after saveMessageToDB
   speaker: 'red' | 'blue' | 'host'
   content: string
   roundNumber: number
@@ -20,7 +21,7 @@ interface UseDebateReturn {
   currentRound: number
   isRunning: boolean
   isComplete: boolean
-  reportContent: string | null
+  reportContent: ReportData | null
   debateId: string | null
   runRound: (debate: Debate, language: Language) => Promise<void>
   initDebate: (debate: Debate) => void
@@ -42,17 +43,26 @@ async function streamAI(
   const reader = resp.body!.getReader()
   const decoder = new TextDecoder()
   let tokenCount = 0
+  let buffer = ''
 
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
 
-    const lines = decoder.decode(value).split('\n')
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    // keep the last (potentially incomplete) line in the buffer
+    buffer = lines.pop() ?? ''
+
     for (const line of lines) {
       if (!line.startsWith('data: ')) continue
-      const data = JSON.parse(line.slice(6))
-      if (data.text) onChunk(data.text)
-      if (data.done) tokenCount = data.tokenCount ?? 0
+      try {
+        const data = JSON.parse(line.slice(6))
+        if (data.text) onChunk(data.text)
+        if (data.done) tokenCount = data.tokenCount ?? 0
+      } catch {
+        // skip malformed chunk
+      }
     }
   }
 
@@ -64,7 +74,7 @@ export function useDebate(): UseDebateReturn {
   const [currentRound, setCurrentRound] = useState(1)
   const [isRunning, setIsRunning] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
-  const [reportContent, setReportContent] = useState<string | null>(null)
+  const [reportContent, setReportContent] = useState<ReportData | null>(null)
   const [debateId, setDebateId] = useState<string | null>(null)
   const messagesRef = useRef<LocalMessage[]>([])
 
@@ -107,7 +117,7 @@ export function useDebate(): UseDebateReturn {
     setMessages((prev) => {
       const next = prev.map((m) => {
         if (m.roundNumber !== roundNumber) return m
-        const err = errors.find((e) => e.speaker === m.speaker && m.content.includes(e.claim.slice(0, 20)))
+        const err = errors.find((e) => e.speaker === m.speaker && m.content.includes(e.claim.trim().replace(/^["']|["']$/g, '').slice(0, 40)))
         if (!err) return m
         return { ...m, hasFactError: true, factErrorNote: err.note }
       })
@@ -116,22 +126,35 @@ export function useDebate(): UseDebateReturn {
     })
   }, [])
 
-  const saveMessageToDB = useCallback(async (debateId: string, msg: LocalMessage) => {
-    await fetch('/api/debate/save-message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'save_message',
-        debate_id: debateId,
-        round_number: msg.roundNumber,
-        speaker: msg.speaker,
-        content: msg.content,
-        has_fact_error: msg.hasFactError,
-        fact_error_note: msg.factErrorNote,
-        is_final_round: msg.isFinalRound,
-        token_count: msg.tokenCount,
-      }),
-    })
+  const saveMessageToDB = useCallback(async (debateId: string, msg: LocalMessage): Promise<string | null> => {
+    try {
+      const resp = await fetch('/api/debate/save-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_message',
+          debate_id: debateId,
+          round_number: msg.roundNumber,
+          speaker: msg.speaker,
+          content: msg.content,
+          has_fact_error: msg.hasFactError,
+          fact_error_note: msg.factErrorNote,
+          is_final_round: msg.isFinalRound,
+          token_count: msg.tokenCount,
+        }),
+      })
+      const { message } = await resp.json()
+      // store DB UUID on the local message for fact-error updates
+      if (message?.id) {
+        setMessages((prev) => {
+          const next = prev.map((m) => m.id === msg.id ? { ...m, dbId: message.id } : m)
+          messagesRef.current = next
+          return next
+        })
+        return message.id as string
+      }
+    } catch {}
+    return null
   }, [])
 
   const initDebate = useCallback((debate: Debate) => {
@@ -157,6 +180,7 @@ export function useDebate(): UseDebateReturn {
     }))
 
     const baseBody = {
+      debate_id: debate.id,
       topic: debate.topic,
       currentRound: round,
       totalRounds: debate.rounds,
@@ -210,6 +234,7 @@ export function useDebate(): UseDebateReturn {
       const blueContent = messagesRef.current.find((m) => m.id === blueId)?.content ?? ''
 
       // 팩트체크 비동기 (블로킹 없음)
+      const currentDebateId = debate.id
       fetch('/api/debate/factcheck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -219,6 +244,29 @@ export function useDebate(): UseDebateReturn {
         .then((result) => {
           if (result.errors?.length > 0) {
             applyFactErrors(result.errors, round)
+            // #7 팩트 오류 DB 반영
+            if (currentDebateId) {
+              const msgs = messagesRef.current
+              for (const err of result.errors) {
+                const matched = msgs.find(
+                  (m) => m.roundNumber === round &&
+                    m.speaker === err.speaker &&
+                    m.content.includes(err.claim.trim().replace(/^["']|["']$/g, '').slice(0, 40))
+                )
+                if (matched?.dbId) {
+                  fetch('/api/debate/save-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'update_fact_error',
+                      debate_id: currentDebateId,
+                      message_id: matched.dbId,
+                      fact_error_note: err.note,
+                    }),
+                  }).catch(() => {})
+                }
+              }
+            }
           }
         })
         .catch(() => {})
@@ -241,6 +289,7 @@ export function useDebate(): UseDebateReturn {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            debate_id: debate.id,
             topic: debate.topic,
             messages: allMessages.map((m) => ({
               speaker: m.speaker,
@@ -251,8 +300,27 @@ export function useDebate(): UseDebateReturn {
             language,
           }),
         })
-        const { content } = await reportResp.json()
-        setReportContent(content)
+        const { report } = await reportResp.json() as { report: ReportData }
+        setReportContent(report)
+
+        // 리포트 DB 저장 (구조화된 필드 각각 저장)
+        if (debate.id) {
+          fetch('/api/debate/save-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'save_report',
+              debate_id: debate.id,
+              red_summary: report.red_summary ?? null,
+              blue_summary: report.blue_summary ?? null,
+              new_perspectives: report.new_perspectives ?? null,
+              argument_gap: report.argument_gap ?? null,
+              next_question: report.next_question ?? null,
+              fact_errors: report.fact_errors ?? null,
+              convergence_note: report.convergence_note ?? null,
+            }),
+          }).catch(() => {})
+        }
 
         // DB 완료 처리
         if (debate.id) {
