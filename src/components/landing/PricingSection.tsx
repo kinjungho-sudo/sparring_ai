@@ -33,12 +33,12 @@ export default function PricingSection() {
             </div>
             <ul className="space-y-3 text-sm text-left mb-8" style={{ color: 'var(--text-secondary)' }}>
               {(language === 'ko' ? [
-                '무제한 토론 (Beta 종료 시 유료 전환)',
+                '하루 최대 10회 토론 (Beta 종료 시 유료 전환)',
                 'AI 페르소나 & 어조 커스텀',
                 '최종 결론 리포트',
                 'TTS 음성 지원',
               ] : [
-                'Unlimited debates (paid after Beta)',
+                'Up to 10 debates/day (paid after Beta)',
                 'AI persona & tone customization',
                 'Final verdict report',
                 'TTS voice support',
