@@ -159,6 +159,17 @@ export default function DebateArena({ debate }: DebateArenaProps) {
           </div>
         )}
 
+        {messages.length === 0 && isRunning && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center animate-fade-slide-in">
+              <p className="text-3xl mb-3">🤔</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                {t('생각 중...', 'Thinking...')}
+              </p>
+            </div>
+          </div>
+        )}
+
         {messages.map((msg, i) => (
           <MessageBubble
             key={msg.id}
