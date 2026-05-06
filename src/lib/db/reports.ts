@@ -5,7 +5,7 @@ export async function saveReport(params: {
   debate_id: string
   red_summary?: string
   blue_summary?: string
-  new_perspectives?: { perspective1: string; perspective2: string }
+  new_perspectives?: string[] | null
   argument_gap?: string
   next_question?: string
   fact_errors?: Array<{ claim: string; note: string }>

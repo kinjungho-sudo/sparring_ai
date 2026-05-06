@@ -36,7 +36,7 @@ export interface Report {
   debate_id: string
   red_summary: string | null
   blue_summary: string | null
-  new_perspectives: { perspective1: string; perspective2: string } | null
+  new_perspectives: string[] | null
   argument_gap: string | null
   next_question: string | null
   fact_errors: Array<{ claim: string; note: string }> | null
@@ -49,6 +49,16 @@ export interface Usage {
   user_id: string
   date: string
   count: number
+}
+
+export interface ReportData {
+  red_summary?: string | null
+  blue_summary?: string | null
+  new_perspectives?: string[] | null
+  argument_gap?: string | null
+  next_question?: string | null
+  fact_errors?: Array<{ speaker: string; note: string | null }> | null
+  convergence_note?: string | null
 }
 
 export interface ValidateResult {

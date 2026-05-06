@@ -15,10 +15,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq('id', id)
     .single()
 
-  if (!debate?.is_public) return {}
+  if (!debate) return {}
 
   const title = `"${debate.topic}" — 스파링 AI 토론`
   const description = 'AI 두 명이 찬반으로 격돌한 토론 결과를 확인해보세요.'
+
+  // 비공개 토론은 title만 (소셜 공유 메타 제외)
+  if (!debate.is_public) return { title }
 
   return {
     title,
