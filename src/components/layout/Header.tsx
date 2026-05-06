@@ -33,6 +33,9 @@ export default function Header() {
           <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
             ⚡ Sparring AI
           </span>
+          <span className="text-xs font-black px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(99,102,241,0.15)', color: 'var(--accent)' }}>
+            BETA
+          </span>
         </Link>
         <nav className="hidden md:flex items-center gap-5">
           <Link href="/#how-it-works" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>서비스 소개</Link>
@@ -52,13 +55,16 @@ export default function Header() {
         </button>
 
         {user ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link
               href="/account"
-              className="text-xs transition-colors hover:opacity-80"
-              style={{ color: 'var(--text-muted)' }}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
+              style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
             >
-              {user.email}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+              </svg>
+              {t('마이페이지', 'My page')}
             </Link>
             <button
               onClick={handleSignOut}

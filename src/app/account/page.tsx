@@ -69,15 +69,13 @@ export default async function AccountPage() {
             className="text-xs font-black px-3 py-1 rounded-full"
             style={{ color: 'var(--accent)', backgroundColor: 'var(--accent-dim)' }}
           >
-            FREE
+            BETA
           </span>
         </div>
         <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4 text-center" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-              {IS_UNLIMITED ? '∞' : `${usedToday}/${DAILY_LIMIT}`}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>오늘 사용</p>
+            <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>∞</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Beta 무제한</p>
           </div>
           <div>
             <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{totalDebates}</p>

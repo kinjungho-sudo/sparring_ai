@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 
-const DAILY_LIMIT = process.env.DAILY_LIMIT ? parseInt(process.env.DAILY_LIMIT) : 3
-// DAILY_LIMIT=0 이면 무제한 (테스트 기간)
+const DAILY_LIMIT = process.env.DAILY_LIMIT ? parseInt(process.env.DAILY_LIMIT) : 0
+// DAILY_LIMIT=0 이면 무제한 (Beta 기간 중 무제한, 추후 유료 전환 시 변경)
 const IS_UNLIMITED = DAILY_LIMIT === 0
 
 export async function checkAndIncrementUsage(userId: string): Promise<{ allowed: boolean; count: number }> {

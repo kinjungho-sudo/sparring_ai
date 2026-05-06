@@ -52,18 +52,7 @@ export default function HeroSection() {
           >
             {t('토론 시작하기 →', 'Start a debate →')}
           </Link>
-          <Link
-            href="/login"
-            className="h-12 px-8 rounded-xl border font-semibold text-sm transition-colors inline-flex items-center justify-center hover:bg-white/5"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-          >
-            {t('로그인하고 매일 3회 무료', 'Log in — 3 free debates/day')}
-          </Link>
         </div>
-
-        <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
-          {t('신용카드 불필요 · 스팸 없음', 'No credit card · No spam')}
-        </p>
       </div>
     </section>
   )
