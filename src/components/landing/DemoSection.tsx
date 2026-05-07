@@ -259,7 +259,7 @@ export default function DemoSection() {
         <div className="text-center mb-12">
           <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>DEMO</p>
           <h2 className="font-black mb-4" style={{ fontSize: 'clamp(28px, 4vw, 48px)', color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>
-            {t('이렇게 작동합니다', 'See it in action')}
+            {t('30초 만에 체험하기', 'See it live')}
           </h2>
           <p className="text-base max-w-xl mx-auto" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             {t(
