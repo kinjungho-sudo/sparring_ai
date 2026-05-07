@@ -2,7 +2,6 @@ import HeroSection from '@/components/landing/HeroSection'
 import DemoSection from '@/components/landing/DemoSection'
 import PainPointSection from '@/components/landing/PainPointSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
-import TestimonialSection from '@/components/landing/TestimonialSection'
 import PricingSection from '@/components/landing/PricingSection'
 import FAQSection from '@/components/landing/FAQSection'
 
@@ -21,13 +20,10 @@ export default function HomePage() {
       {/* 4. 작동 방식 — 3단계 */}
       <section id="how-it-works"><HowItWorksSection /></section>
 
-      {/* 5. 후기 + 신뢰 지표 */}
-      <TestimonialSection />
-
-      {/* 6. 가격 */}
+      {/* 5. 가격 */}
       <section id="pricing"><PricingSection /></section>
 
-      {/* 7. FAQ */}
+      {/* 6. FAQ */}
       <section id="faq"><FAQSection /></section>
     </>
   )
