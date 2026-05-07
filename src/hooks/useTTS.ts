@@ -71,18 +71,39 @@ export function useTTS() {
   const [isSupported, setIsSupported] = useState(false)
   const [speed, setSpeed] = useState<TTSSpeed>(1.0)
   const [ttsSpeaker, setTtsSpeaker] = useState<'red' | 'blue' | null>(null)
+  const [volume, setVolume] = useState(1.0)
+  const [isMuted, setIsMuted] = useState(false)
 
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const openaiAvailableRef = useRef<boolean | null>(null)
   const ttsEnabledRef = useRef(false)
   const speedRef = useRef<TTSSpeed>(1.0)
+  const volumeRef = useRef(1.0)
+  const isMutedRef = useRef(false)
 
   const setSpeedSync = useCallback((s: TTSSpeed) => {
     speedRef.current = s
     setSpeed(s)
-    // 현재 재생 중인 오디오에 즉시 적용
     if (audioRef.current) audioRef.current.playbackRate = s
+  }, [])
+
+  const setVolumeSync = useCallback((v: number) => {
+    const clamped = Math.max(0, Math.min(1, v))
+    volumeRef.current = clamped
+    setVolume(clamped)
+    if (audioRef.current) audioRef.current.volume = isMutedRef.current ? 0 : clamped
+  }, [])
+
+  const toggleMute = useCallback(() => {
+    const next = !isMutedRef.current
+    isMutedRef.current = next
+    setIsMuted(next)
+    if (audioRef.current) audioRef.current.volume = next ? 0 : volumeRef.current
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      // SpeechSynthesis는 volume 직접 제어 불가 — 음소거 시 cancel로 처리
+      if (next) window.speechSynthesis.cancel()
+    }
   }, [])
 
   // 직렬 큐
@@ -140,6 +161,7 @@ export function useTTS() {
       return new Promise<void>((resolve) => {
         const audio = new Audio(url)
         audio.playbackRate = speedRef.current
+        audio.volume = isMutedRef.current ? 0 : volumeRef.current
         audioRef.current = audio
         let settled = false
         const done = () => {
@@ -168,8 +190,10 @@ export function useTTS() {
   function playBrowser(text: string, options: TTSOptions): Promise<void> {
     return new Promise((resolve) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) { resolve(); return }
+      if (isMutedRef.current) { resolve(); return }
       window.speechSynthesis.cancel()
       const utter = new SpeechSynthesisUtterance(text)
+      utter.volume = volumeRef.current
       utter.lang = options.lang === 'en' ? 'en-US' : 'ko-KR'
       utter.rate = (options.speaker === 'red' ? 0.92 : 1.0) * speedRef.current
       utter.pitch = options.speaker === 'red' ? 0.80 : 1.15
@@ -263,5 +287,5 @@ export function useTTS() {
     setTtsSpeaker(null)
   }, [])
 
-  return { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported, speed, setSpeed: setSpeedSync }
+  return { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported, speed, setSpeed: setSpeedSync, volume, setVolume: setVolumeSync, isMuted, toggleMute }
 }

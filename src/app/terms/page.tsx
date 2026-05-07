@@ -20,7 +20,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-base font-bold mb-3" style={{ color: 'var(--text-primary)' }}>제2조 (서비스 내용)</h2>
-          <p>서비스는 AI 찬반 토론을 통해 사용자의 의사결정을 보조하는 AI 코칭 서비스를 제공합니다. 무료 플랜은 하루 3회 토론이 제공됩니다.</p>
+          <p>서비스는 AI 찬반 토론을 통해 사용자의 의사결정을 보조하는 AI 코칭 서비스를 제공합니다. 무료 플랜은 하루 5회 토론이 제공됩니다.</p>
         </section>
 
         <section>

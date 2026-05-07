@@ -5,7 +5,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '내 계정' }
 
-const FREE_DAILY_LIMIT = process.env.FREE_DAILY_LIMIT ? parseInt(process.env.FREE_DAILY_LIMIT) : 3
+const FREE_DAILY_LIMIT = process.env.FREE_DAILY_LIMIT ? parseInt(process.env.FREE_DAILY_LIMIT) : 5
 
 interface Debate {
   id: string

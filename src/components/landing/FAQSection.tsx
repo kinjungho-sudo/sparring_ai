@@ -6,7 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 const FAQ_KO = [
   {
     q: '완전히 무료인가요?',
-    a: '네. 회원가입만 하면 매일 3회 무료로 토론할 수 있습니다. 비로그인 상태에서도 샘플 토론 1회를 체험할 수 있습니다.',
+    a: '네. 회원가입만 하면 매일 5회 무료로 토론할 수 있습니다. 비로그인 상태에서도 샘플 토론 1회를 체험할 수 있습니다.',
   },
   {
     q: '어떤 주제든 토론이 가능한가요?',
@@ -29,7 +29,7 @@ const FAQ_KO = [
 const FAQ_EN = [
   {
     q: 'Is it completely free?',
-    a: 'Yes. Sign up and get 3 free debates every day. You can also try one sample debate without logging in.',
+    a: 'Yes. Sign up and get 5 free debates every day. You can also try one sample debate without logging in.',
   },
   {
     q: 'Can I debate on any topic?',

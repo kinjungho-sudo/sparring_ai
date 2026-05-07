@@ -25,7 +25,7 @@ function SampleEndPrompt({ language }: { language: string }) {
           {language === 'ko' ? '체험이 끝났습니다!' : 'Trial complete!'}
         </h3>
         <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
-          {language === 'ko' ? '더 많은 의제로 토론하려면 로그인하세요. 매일 3회 무료!' : 'Log in to debate on any topic — 3 free debates every day!'}
+          {language === 'ko' ? '더 많은 의제로 토론하려면 로그인하세요. 매일 5회 무료!' : 'Log in to debate on any topic — 5 free debates every day!'}
         </p>
         <Link href="/login" className="flex items-center justify-center gap-3 w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-colors mb-3">
           {language === 'ko' ? 'Google로 시작하기' : 'Continue with Google'}
@@ -135,7 +135,7 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
 export default function DebateArena({ debate }: DebateArenaProps) {
   const { language, t } = useLanguage()
   const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
-  const { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed } = useTTS()
+  const { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed, volume, setVolume, isMuted, toggleMute } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
@@ -186,7 +186,7 @@ export default function DebateArena({ debate }: DebateArenaProps) {
   const ttsEnabledRef = useRef(ttsEnabled)
   ttsEnabledRef.current = ttsEnabled
 
-  // 새 메시지 완료 시: TTS 큐에 추가 → RED 끝나면 BLUE 자동 재생 → BLUE 끝나면 다음 라운드
+  // 새 메시지 완료 시: TTS 큐에 추가 + BLUE 완료 즉시 다음 라운드 자동 진행 (TTS와 독립)
   useEffect(() => {
     const completed = messages.filter((m) => !m.isStreaming && (m.speaker === 'red' || m.speaker === 'blue'))
     if (completed.length <= prevMessagesCountRef.current) return
@@ -197,30 +197,18 @@ export default function DebateArena({ debate }: DebateArenaProps) {
 
     let cancelled = false
 
+    // TTS 큐에 추가 (라운드 진행과 독립적으로 재생)
     if (ttsEnabledRef.current) {
       const speaker = latest.speaker as 'red' | 'blue'
       const cfg = speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
       const tone = cfg?.tone ?? 'default'
       const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
       const voice: TTSVoice = cfg?.voice ?? voiceMap[speaker]
+      speakRef.current(latest.content, { speaker, lang: language, voice })
+    }
 
-      speakRef.current(
-        latest.content,
-        { speaker, lang: language, voice },
-        latest.speaker === 'blue'
-          ? () => {
-              if (!cancelled && autoModeRef.current && !isCompleteRef.current) {
-                setTimeout(() => {
-                  if (!cancelled && autoModeRef.current && !isCompleteRef.current) {
-                    runRoundRef.current(debate, language, totalRounds)
-                  }
-                }, 300)
-              }
-            }
-          : undefined
-      )
-    } else if (latest.speaker === 'blue' && autoModeRef.current && !isCompleteRef.current && roundErrorCount < 2) {
-      // TTS OFF: BLUE 완료 300ms 후 다음 라운드 (isRunning 의존성 제거 — 경쟁 조건 방지)
+    // BLUE 완료 시 다음 라운드 즉시 진행 (TTS ON/OFF 무관)
+    if (latest.speaker === 'blue' && autoModeRef.current && !isCompleteRef.current && roundErrorCount < 2) {
       const timer = setTimeout(() => {
         if (!cancelled && autoModeRef.current && !isCompleteRef.current) {
           runRoundRef.current(debate, language, totalRounds)
@@ -230,7 +218,6 @@ export default function DebateArena({ debate }: DebateArenaProps) {
     }
 
     return () => { cancelled = true }
-  // isRunning을 의존성에서 제거 — isRunning 변경 시 effect 재실행되면 cancelled=true로 타이머 취소됨
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, roundErrorCount, debate, language, totalRounds])
 
@@ -355,11 +342,55 @@ export default function DebateArena({ debate }: DebateArenaProps) {
                   ))}
                 </div>
               )}
+              {/* 볼륨 슬라이더 + 음소거 — TTS 켜져 있을 때만 표시 */}
+              {ttsEnabled && (
+                <div className="flex items-center gap-1">
+                  {/* 음소거 버튼 */}
+                  <button
+                    onClick={toggleMute}
+                    className="flex items-center justify-center w-7 h-7 rounded-lg border transition-all"
+                    style={{
+                      borderColor: isMuted ? 'rgba(239,68,68,0.5)' : 'var(--border)',
+                      color: isMuted ? '#ef4444' : 'var(--text-muted)',
+                      backgroundColor: isMuted ? 'rgba(239,68,68,0.08)' : 'transparent',
+                    }}
+                    title={isMuted ? '음소거 해제' : '음소거'}
+                  >
+                    {isMuted ? (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+                      </svg>
+                    ) : (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                        {volume > 0.5 ? <><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></> : <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />}
+                      </svg>
+                    )}
+                  </button>
+                  {/* 볼륨 슬라이더 */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      if (isMuted && v > 0) toggleMute()
+                      setVolume(v)
+                    }}
+                    className="w-16 accent-indigo-500"
+                    title={`볼륨 ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                    style={{ height: '4px' }}
+                  />
+                </div>
+              )}
               {/* pause/resume — TTS 재생 중일 때만 표시 */}
               {ttsEnabled && isSpeaking && (
                 <button
                   onClick={isPaused ? resume : pause}
-                  className="flex items-center justify-center w-8 h-8 rounded-lg border transition-all"
+                  className="flex items-center justify-center w-7 h-7 rounded-lg border transition-all"
                   style={{
                     borderColor: 'rgba(99,102,241,0.5)',
                     color: 'var(--accent)',

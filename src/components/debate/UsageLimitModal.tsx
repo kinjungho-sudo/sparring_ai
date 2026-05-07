@@ -26,7 +26,7 @@ export default function UsageLimitModal({ onClose }: UsageLimitModalProps) {
           {t('오늘의 무료 토론이 끝났습니다', "Today's free debates used up")}
         </h3>
         <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
-          {t('매일 3회 무료 · 무제한은 월 9,900원', '3 free/day · Unlimited at ₩9,900/mo')}
+          {t('매일 5회 무료 · 무제한은 월 9,900원', '5 free/day · Unlimited at ₩9,900/mo')}
         </p>
         <Link
           href={isLoggedIn ? '/#pricing' : '/login'}

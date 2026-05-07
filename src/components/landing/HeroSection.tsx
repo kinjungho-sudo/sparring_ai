@@ -76,7 +76,7 @@ export default function HeroSection() {
           {[
             t('✓ 무료로 시작', '✓ Free to start'),
             t('✓ 신용카드 불필요', '✓ No credit card'),
-            t('✓ 매일 10회 제공', '✓ 10 debates/day'),
+            t('✓ 매일 5회 제공', '✓ 5 debates/day'),
           ].map((item) => (
             <span key={item} className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{item}</span>
           ))}

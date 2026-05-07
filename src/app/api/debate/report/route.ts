@@ -28,16 +28,29 @@ export async function POST(req: NextRequest) {
 
     let report
     try {
-      // JSON 블록 추출 (```json ... ``` 감싸져 있는 경우 대비)
-      const jsonMatch = raw.match(/\{[\s\S]*\}/)
-      report = jsonMatch ? JSON.parse(jsonMatch[0]) : null
+      // ```json ... ``` 블록 우선 추출, 없으면 첫 번째 { } 블록
+      const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+      const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : (() => {
+        // 가장 바깥쪽 { } 추출 — 앞뒤 텍스트 제거
+        const start = raw.indexOf('{')
+        const end = raw.lastIndexOf('}')
+        return start !== -1 && end > start ? raw.slice(start, end + 1) : null
+      })()
+      report = jsonStr ? JSON.parse(jsonStr) : null
     } catch {
       report = null
     }
 
     // 파싱 실패 시 전체 텍스트를 convergence_note에 폴백
-    if (!report) {
+    if (!report || typeof report !== 'object') {
       report = { convergence_note: raw }
+    }
+
+    // 각 필드가 JSON 문자열로 이중 인코딩된 경우 재파싱
+    for (const key of ['speech_summaries', 'key_points', 'fact_checks', 'verdict'] as const) {
+      if (typeof report[key] === 'string') {
+        try { report[key] = JSON.parse(report[key]) } catch { /* 원본 유지 */ }
+      }
     }
 
     logApiCall({ debate_id, endpoint: '/api/debate/report', duration_ms: Date.now() - startTime, status: 'success' })

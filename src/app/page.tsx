@@ -4,6 +4,7 @@ import PainPointSection from '@/components/landing/PainPointSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
 import PricingSection from '@/components/landing/PricingSection'
 import FAQSection from '@/components/landing/FAQSection'
+import WaitlistSection from '@/components/landing/WaitlistSection'
 
 export default function HomePage() {
   return (
@@ -18,13 +19,16 @@ export default function HomePage() {
       <PainPointSection />
 
       {/* 4. 작동 방식 — 3단계 */}
-      <section id="how-it-works"><HowItWorksSection /></section>
+      <HowItWorksSection />
 
       {/* 5. 가격 */}
       <section id="pricing"><PricingSection /></section>
 
       {/* 6. FAQ */}
       <section id="faq"><FAQSection /></section>
+
+      {/* 7. 얼리버드 웨이트리스트 CTA */}
+      <WaitlistSection />
     </>
   )
 }

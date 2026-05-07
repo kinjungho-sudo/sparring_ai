@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     default: '스파링 AI — 의사결정 보조 AI 토론',
     template: '%s | 스파링 AI',
   },
-  description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다. 매일 3회 무료.',
+  description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다. 매일 5회 무료.',
   keywords: ['AI 토론', '의사결정', '찬반 토론', '스파링 AI', 'AI 디베이트'],
   authors: [{ name: '스파링 AI' }],
   creator: '스파링 AI',

@@ -56,11 +56,28 @@ function parseFactChecks(raw: unknown): ReportData['fact_checks'] {
 }
 
 export default function DebateReport({ report, topic, debateId }: DebateReportProps) {
+  // convergence_note에 JSON 전체가 담긴 경우 (폴백 케이스) 재파싱해서 올바른 report로 교체
+  const effectiveReport: ReportData = (() => {
+    if (!report.verdict && !report.speech_summaries && report.convergence_note) {
+      try {
+        const start = report.convergence_note.indexOf('{')
+        const end = report.convergence_note.lastIndexOf('}')
+        if (start !== -1 && end > start) {
+          const parsed = JSON.parse(report.convergence_note.slice(start, end + 1))
+          if (parsed && typeof parsed === 'object' && (parsed.verdict || parsed.speech_summaries)) {
+            return { ...report, ...parsed, convergence_note: undefined }
+          }
+        }
+      } catch { /* 원본 유지 */ }
+    }
+    return report
+  })()
+
   // AI가 JSON 문자열을 필드에 직접 넣는 경우 파싱
-  const verdict = parseVerdict(report.verdict)
-  const speechSummaries = parseSpeechSummaries(report.speech_summaries)
-  const keyPoints = parseStringArray(report.key_points)
-  const factChecks = parseFactChecks(report.fact_checks)
+  const verdict = parseVerdict(effectiveReport.verdict)
+  const speechSummaries = parseSpeechSummaries(effectiveReport.speech_summaries)
+  const keyPoints = parseStringArray(effectiveReport.key_points)
+  const factChecks = parseFactChecks(effectiveReport.fact_checks)
 
   const winner = verdict?.winner
   const winnerColor = winner ? (winner === 'red' ? '#ef4444' : '#6366f1') : undefined
@@ -141,11 +158,11 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
           )}
 
           {/* 레거시 팩트 오류 (이전 저장 데이터 호환) */}
-          {!factChecks && report.fact_errors && report.fact_errors.length > 0 && (
+          {!factChecks && effectiveReport.fact_errors && effectiveReport.fact_errors.length > 0 && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.05)', animationDelay: '160ms' }}>
               <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>③ 팩트 오류</p>
               <ul className="space-y-1">
-                {report.fact_errors.map((e, i) => (
+                {effectiveReport.fact_errors.map((e, i) => (
                   <li key={i} className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                     <span className="font-bold uppercase" style={{ color: '#f59e0b' }}>{e.speaker}</span>: {e.note ?? ''}
                   </li>
@@ -189,10 +206,10 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
           )}
 
           {/* 레거시 수렴 판정 호환 */}
-          {!verdict && report.convergence_note && (
+          {!verdict && effectiveReport.convergence_note && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', animationDelay: '240ms' }}>
               <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>⚖️ 수렴 판정</p>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{report.convergence_note}</p>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{effectiveReport.convergence_note}</p>
             </section>
           )}
 
