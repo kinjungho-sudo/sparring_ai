@@ -16,6 +16,8 @@ interface LocalMessage {
   isStreaming?: boolean
 }
 
+type SpeakFn = (text: string, speaker: 'red' | 'blue') => Promise<void>
+
 interface UseDebateReturn {
   messages: LocalMessage[]
   currentRound: number
@@ -25,6 +27,7 @@ interface UseDebateReturn {
   roundErrorCount: number
   reportContent: ReportData | null
   debateId: string | null
+  setSpeakFn: (fn: SpeakFn | null) => void
   runRound: (debate: Debate, language: Language, overrideTotalRounds?: number, autoMode?: boolean) => Promise<void>
   initDebate: (debate: Debate) => void
   adjustTotalRounds: (n: number) => void
@@ -89,6 +92,7 @@ export function useDebate(): UseDebateReturn {
   const roundErrorCountRef = useRef(0)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const runRoundRef = useRef<any>(null)
+  const speakFnRef = useRef<SpeakFn | null>(null)
 
   const addStreamingMessage = useCallback((id: string, speaker: 'red' | 'blue' | 'host', roundNumber: number, isFinalRound: boolean) => {
     const msg: LocalMessage = { id, speaker, content: '', roundNumber, isFinalRound, hasFactError: false, factErrorNote: null, tokenCount: null, isStreaming: true }
@@ -259,6 +263,11 @@ export function useDebate(): UseDebateReturn {
       const { tokenCount: redTokens } = await streamAI('/api/debate/red', baseBody, (text) => updateStreamingMessage(redId, text))
       finalizeMessage(redId, redTokens)
 
+      // RED TTS — 완료될 때까지 BLUE 대기 (TTS OFF면 즉시 통과)
+      if (speakFnRef.current) {
+        await speakFnRef.current(messagesRef.current.find((m) => m.id === redId)?.content ?? '', 'red')
+      }
+
       const blueId = `blue-${round}`
       addStreamingMessage(blueId, 'blue', round, isFinalRound)
       const { tokenCount: blueTokens } = await streamAI('/api/debate/blue', {
@@ -266,6 +275,11 @@ export function useDebate(): UseDebateReturn {
         history: [...history, { speaker: 'red', content: messagesRef.current.find((m) => m.id === redId)?.content ?? '' }],
       }, (text) => updateStreamingMessage(blueId, text))
       finalizeMessage(blueId, blueTokens)
+
+      // BLUE TTS — 완료될 때까지 다음 라운드 대기 (TTS OFF면 즉시 통과)
+      if (speakFnRef.current) {
+        await speakFnRef.current(messagesRef.current.find((m) => m.id === blueId)?.content ?? '', 'blue')
+      }
 
       const redContent = messagesRef.current.find((m) => m.id === redId)?.content ?? ''
       const blueContent = messagesRef.current.find((m) => m.id === blueId)?.content ?? ''
@@ -380,5 +394,9 @@ export function useDebate(): UseDebateReturn {
 
   runRoundRef.current = runRound
 
-  return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, debateId, runRound, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
+  const setSpeakFn = useCallback((fn: SpeakFn | null) => {
+    speakFnRef.current = fn
+  }, [])
+
+  return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, debateId, setSpeakFn, runRound, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
 }

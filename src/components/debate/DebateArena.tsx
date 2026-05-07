@@ -135,13 +135,12 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
 
 export default function DebateArena({ debate, initialReport }: DebateArenaProps) {
   const { language, t } = useLanguage()
-  const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
+  const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention, setSpeakFn } = useDebate()
   const { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed, volume, setVolume, isMuted, toggleMute } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
   const [showReport, setShowReport] = useState(() => !!initialReport)
-  const prevMessagesCountRef = useRef(0)
 
   // 자동 진행 모드 (기본값 true)
   const [autoMode, setAutoMode] = useState(true)
@@ -178,31 +177,21 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
     }
   }, [debate, initDebate])
 
-  const speakRef = useRef(speak)
-  speakRef.current = speak
-  const ttsEnabledRef = useRef(ttsEnabled)
-  ttsEnabledRef.current = ttsEnabled
-
-  // 새 메시지 완료 시: TTS 큐에 추가 (라운드 진행은 useDebate 내부에서 직접 처리)
+  // TTS ON/OFF 변경 시 speakFn 등록/해제 — runRound가 await으로 TTS 완료를 기다림
   useEffect(() => {
-    const completed = messages.filter((m) => !m.isStreaming && (m.speaker === 'red' || m.speaker === 'blue'))
-    if (completed.length <= prevMessagesCountRef.current) return
-
-    const latest = completed[completed.length - 1]
-    prevMessagesCountRef.current = completed.length
-    if (!latest) return
-
-    // TTS 큐에 추가 (라운드 진행과 독립적으로 재생)
-    if (ttsEnabledRef.current) {
-      const speaker = latest.speaker as 'red' | 'blue'
+    if (!ttsEnabled) {
+      setSpeakFn(null)
+      return
+    }
+    setSpeakFn((text: string, speaker: 'red' | 'blue') => {
       const cfg = speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
       const tone = cfg?.tone ?? 'default'
       const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
       const voice: TTSVoice = cfg?.voice ?? voiceMap[speaker]
-      speakRef.current(latest.content, { speaker, lang: language, voice })
-    }
+      return speak(text, { speaker, lang: language, voice })
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, debate, language])
+  }, [ttsEnabled, debate, language])
 
   // 스크롤: 새 메시지 오면 하단으로
   useEffect(() => {
