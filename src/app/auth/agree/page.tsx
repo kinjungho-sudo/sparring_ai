@@ -4,13 +4,45 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 
+async function saveProfileAndConsent() {
+  const { createClient } = await import('@/lib/supabase/client')
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const meta = user.user_metadata ?? {}
+
+  // 프로필 upsert
+  await supabase.from('sparring_profiles').upsert({
+    id: user.id,
+    email: user.email ?? null,
+    full_name: meta.full_name ?? meta.name ?? null,
+    avatar_url: meta.avatar_url ?? meta.picture ?? null,
+    provider: user.app_metadata?.provider ?? 'google',
+  }, { onConflict: 'id' })
+
+  // 약관 동의 기록
+  await supabase.from('sparring_consents').upsert({
+    user_id: user.id,
+    terms_agreed: true,
+    privacy_agreed: true,
+    marketing_agreed: false,
+    terms_version: 'v1.0',
+    privacy_version: 'v1.0',
+    agreed_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' })
+}
+
 function AgreeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') ?? '/debate/new'
   const [expanded, setExpanded] = useState<'terms' | 'privacy' | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const handleAgree = () => {
+  const handleAgree = async () => {
+    setLoading(true)
+    await saveProfileAndConsent()
     router.replace(next)
   }
 
@@ -102,17 +134,19 @@ function AgreeContent() {
         <div className="px-6 pb-6 pt-2">
           <button
             onClick={handleAgree}
-            className="w-full h-12 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] mb-2"
+            disabled={loading}
+            className="w-full h-12 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 mb-2"
             style={{ backgroundColor: 'var(--accent)' }}
           >
-            모두 동의하고 시작하기
+            {loading ? '저장 중...' : '모두 동의하고 시작하기'}
           </button>
           <p className="text-[11px] text-center mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
             위 이용약관 및 개인정보처리방침(필수)에 모두 동의합니다.
           </p>
           <button
             onClick={handleDecline}
-            className="w-full h-9 rounded-xl text-xs transition-colors hover:bg-white/5"
+            disabled={loading}
+            className="w-full h-9 rounded-xl text-xs transition-colors hover:bg-white/5 disabled:opacity-40"
             style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
           >
             동의하지 않음 — 로그아웃
