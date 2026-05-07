@@ -5,4 +5,4 @@ export const anthropic = new Anthropic({
 })
 
 export const MODEL = 'claude-sonnet-4-6'
-export const MAX_TOKENS = 400
+export const MAX_TOKENS = 1500

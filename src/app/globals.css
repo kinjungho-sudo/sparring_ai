@@ -69,3 +69,11 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
 }
+
+/* 토론 진행 중: 푸터와 헤더 nav 숨김 */
+body.debate-active footer {
+  display: none !important;
+}
+body.debate-active header nav {
+  display: none !important;
+}

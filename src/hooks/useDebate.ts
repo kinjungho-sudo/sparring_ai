@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import type { Debate, Message, Report, Language, ReportData } from '@/types'
+import type { Debate, Language, ReportData } from '@/types'
 
 interface LocalMessage {
   id: string
-  dbId?: string  // DB UUID, populated after saveMessageToDB
+  dbId?: string
   speaker: 'red' | 'blue' | 'host'
   content: string
   roundNumber: number
@@ -19,12 +19,17 @@ interface LocalMessage {
 interface UseDebateReturn {
   messages: LocalMessage[]
   currentRound: number
+  totalRounds: number
   isRunning: boolean
   isComplete: boolean
+  roundErrorCount: number
   reportContent: ReportData | null
   debateId: string | null
-  runRound: (debate: Debate, language: Language) => Promise<void>
+  runRound: (debate: Debate, language: Language, overrideTotalRounds?: number) => Promise<void>
   initDebate: (debate: Debate) => void
+  adjustTotalRounds: (n: number) => void
+  resetRoundError: () => void
+  sendHostIntervention: (debate: Debate, language: Language, message: string, target?: 'both' | 'red' | 'blue') => void
 }
 
 async function streamAI(
@@ -51,7 +56,6 @@ async function streamAI(
 
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
-    // keep the last (potentially incomplete) line in the buffer
     buffer = lines.pop() ?? ''
 
     for (const line of lines) {
@@ -72,29 +76,21 @@ async function streamAI(
 export function useDebate(): UseDebateReturn {
   const [messages, setMessages] = useState<LocalMessage[]>([])
   const [currentRound, setCurrentRound] = useState(1)
+  const [totalRounds, setTotalRounds] = useState(7)
   const [isRunning, setIsRunning] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
+  const [roundErrorCount, setRoundErrorCount] = useState(0)
   const [reportContent, setReportContent] = useState<ReportData | null>(null)
   const [debateId, setDebateId] = useState<string | null>(null)
   const messagesRef = useRef<LocalMessage[]>([])
+  const currentRoundRef = useRef(1)
+  const totalRoundsRef = useRef(7)
+  const isRunningRef = useRef(false)
+  const roundErrorCountRef = useRef(0)
 
   const addStreamingMessage = useCallback((id: string, speaker: 'red' | 'blue' | 'host', roundNumber: number, isFinalRound: boolean) => {
-    const msg: LocalMessage = {
-      id,
-      speaker,
-      content: '',
-      roundNumber,
-      isFinalRound,
-      hasFactError: false,
-      factErrorNote: null,
-      tokenCount: null,
-      isStreaming: true,
-    }
-    setMessages((prev) => {
-      const next = [...prev, msg]
-      messagesRef.current = next
-      return next
-    })
+    const msg: LocalMessage = { id, speaker, content: '', roundNumber, isFinalRound, hasFactError: false, factErrorNote: null, tokenCount: null, isStreaming: true }
+    setMessages((prev) => { const next = [...prev, msg]; messagesRef.current = next; return next })
   }, [])
 
   const updateStreamingMessage = useCallback((id: string, text: string) => {
@@ -144,7 +140,6 @@ export function useDebate(): UseDebateReturn {
         }),
       })
       const { message } = await resp.json()
-      // store DB UUID on the local message for fact-error updates
       if (message?.id) {
         setMessages((prev) => {
           const next = prev.map((m) => m.id === msg.id ? { ...m, dbId: message.id } : m)
@@ -162,28 +157,80 @@ export function useDebate(): UseDebateReturn {
     setMessages([])
     messagesRef.current = []
     setCurrentRound(1)
+    currentRoundRef.current = 1
+    setTotalRounds(debate.rounds)
+    totalRoundsRef.current = debate.rounds
+    isRunningRef.current = false
+    roundErrorCountRef.current = 0
+    setIsRunning(false)
     setIsComplete(false)
+    setRoundErrorCount(0)
     setReportContent(null)
   }, [])
 
-  const runRound = useCallback(async (debate: Debate, language: Language) => {
-    if (isRunning) return
+  const resetRoundError = useCallback(() => {
+    roundErrorCountRef.current = 0
+    setRoundErrorCount(0)
+  }, [])
+
+  const adjustTotalRounds = useCallback((n: number) => {
+    // 현재 라운드보다 최소 1 이상 많아야 의미 있음 (현재 라운드를 마지막으로 만들지 않도록)
+    const min = currentRoundRef.current + 1
+    const clamped = Math.max(min, Math.min(20, n))
+    setTotalRounds(clamped)
+    totalRoundsRef.current = clamped
+  }, [])
+
+  const sendHostIntervention = useCallback((debate: Debate, language: Language, message: string, target: 'both' | 'red' | 'blue' = 'both') => {
+    const hostId = `host-intervention-${Date.now()}`
+    const round = currentRoundRef.current
+    const targetPrefix = target === 'red'
+      ? (language === 'ko' ? '[RED에게] ' : '[To RED] ')
+      : target === 'blue'
+        ? (language === 'ko' ? '[BLUE에게] ' : '[To BLUE] ')
+        : ''
+    const fullMessage = targetPrefix + message
+    const hostMsg: LocalMessage = {
+      id: hostId, speaker: 'host', content: fullMessage,
+      roundNumber: round, isFinalRound: false,
+      hasFactError: false, factErrorNote: null, tokenCount: null,
+    }
+    setMessages((prev) => { const next = [...prev, hostMsg]; messagesRef.current = next; return next })
+    if (debate.id) {
+      fetch('/api/debate/save-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_message',
+          debate_id: debate.id,
+          round_number: round,
+          speaker: 'host',
+          content: fullMessage,
+          has_fact_error: false,
+          fact_error_note: null,
+          is_final_round: false,
+          token_count: null,
+        }),
+      }).catch(() => {})
+    }
+  }, [])
+
+  const runRound = useCallback(async (debate: Debate, language: Language, overrideTotalRounds?: number) => {
+    if (isRunningRef.current) return
+    isRunningRef.current = true
     setIsRunning(true)
 
-    const round = currentRound
-    const isFinalRound = round === debate.rounds
+    const round = currentRoundRef.current
+    const effectiveTotalRounds = overrideTotalRounds ?? totalRoundsRef.current
+    const isFinalRound = round === effectiveTotalRounds
 
-    // 히스토리 빌드 (DB 형식으로)
-    const history = messagesRef.current.map((m) => ({
-      speaker: m.speaker,
-      content: m.content,
-    }))
+    const history = messagesRef.current.map((m) => ({ speaker: m.speaker, content: m.content }))
 
     const baseBody = {
       debate_id: debate.id,
       topic: debate.topic,
       currentRound: round,
-      totalRounds: debate.rounds,
+      totalRounds: effectiveTotalRounds,
       language,
       history,
       red_config: debate.debate_config?.red,
@@ -191,89 +238,61 @@ export function useDebate(): UseDebateReturn {
     }
 
     try {
-      // 최종 라운드 사회자 개입 고지
       if (isFinalRound) {
         const hostId = `host-final-${round}`
         const hostMsg: LocalMessage = {
-          id: hostId,
-          speaker: 'host',
-          content: language === 'ko'
-            ? '마지막 라운드입니다. 각자 최종 입장을 정리해주세요.'
-            : 'This is the final round. Please summarize your final positions.',
-          roundNumber: round,
-          isFinalRound: true,
-          hasFactError: false,
-          factErrorNote: null,
-          tokenCount: null,
+          id: hostId, speaker: 'host',
+          content: language === 'ko' ? '마지막 라운드입니다. 각자 최종 입장을 정리해주세요.' : 'This is the final round. Please summarize your final positions.',
+          roundNumber: round, isFinalRound: true, hasFactError: false, factErrorNote: null, tokenCount: null,
         }
-        setMessages((prev) => {
-          const next = [...prev, hostMsg]
-          messagesRef.current = next
-          return next
-        })
+        setMessages((prev) => { const next = [...prev, hostMsg]; messagesRef.current = next; return next })
       }
 
-      // RED 스트리밍
+      // 성공적으로 스트리밍 시작 시 에러 카운트 리셋
+      roundErrorCountRef.current = 0
+      setRoundErrorCount(0)
+
       const redId = `red-${round}`
       addStreamingMessage(redId, 'red', round, isFinalRound)
-      const { tokenCount: redTokens } = await streamAI('/api/debate/red', baseBody, (text) => {
-        updateStreamingMessage(redId, text)
-      })
+      const { tokenCount: redTokens } = await streamAI('/api/debate/red', baseBody, (text) => updateStreamingMessage(redId, text))
       finalizeMessage(redId, redTokens)
 
-      // BLUE 스트리밍
       const blueId = `blue-${round}`
       addStreamingMessage(blueId, 'blue', round, isFinalRound)
       const { tokenCount: blueTokens } = await streamAI('/api/debate/blue', {
         ...baseBody,
         history: [...history, { speaker: 'red', content: messagesRef.current.find((m) => m.id === redId)?.content ?? '' }],
-      }, (text) => {
-        updateStreamingMessage(blueId, text)
-      })
+      }, (text) => updateStreamingMessage(blueId, text))
       finalizeMessage(blueId, blueTokens)
 
       const redContent = messagesRef.current.find((m) => m.id === redId)?.content ?? ''
       const blueContent = messagesRef.current.find((m) => m.id === blueId)?.content ?? ''
 
-      // 팩트체크 비동기 (블로킹 없음)
+      // 팩트체크 비동기
       const currentDebateId = debate.id
       fetch('/api/debate/factcheck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...baseBody, redContent, blueContent }),
-      })
-        .then((r) => r.json())
-        .then((result) => {
-          if (result.errors?.length > 0) {
-            applyFactErrors(result.errors, round)
-            // #7 팩트 오류 DB 반영
-            if (currentDebateId) {
-              const msgs = messagesRef.current
-              for (const err of result.errors) {
-                const matched = msgs.find(
-                  (m) => m.roundNumber === round &&
-                    m.speaker === err.speaker &&
-                    m.content.includes(err.claim.trim().replace(/^["']|["']$/g, '').slice(0, 40))
-                )
-                if (matched?.dbId) {
-                  fetch('/api/debate/save-message', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      action: 'update_fact_error',
-                      debate_id: currentDebateId,
-                      message_id: matched.dbId,
-                      fact_error_note: err.note,
-                    }),
-                  }).catch(() => {})
-                }
+      }).then((r) => r.json()).then((result) => {
+        if (result.errors?.length > 0) {
+          applyFactErrors(result.errors, round)
+          if (currentDebateId) {
+            const msgs = messagesRef.current
+            for (const err of result.errors) {
+              const matched = msgs.find((m) => m.roundNumber === round && m.speaker === err.speaker && m.content.includes(err.claim.trim().replace(/^["']|["']$/g, '').slice(0, 40)))
+              if (matched?.dbId) {
+                fetch('/api/debate/save-message', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'update_fact_error', debate_id: currentDebateId, message_id: matched.dbId, fact_error_note: err.note }),
+                }).catch(() => {})
               }
             }
           }
-        })
-        .catch(() => {})
+        }
+      }).catch(() => {})
 
-      // DB 저장
       if (debate.id) {
         const redMsg = messagesRef.current.find((m) => m.id === redId)
         const blueMsg = messagesRef.current.find((m) => m.id === blueId)
@@ -281,83 +300,73 @@ export function useDebate(): UseDebateReturn {
         if (blueMsg) await saveMessageToDB(debate.id, blueMsg)
       }
 
-      // 조기 종료 감지
       const earlyEnd = redContent.includes('승복합니다:') || blueContent.includes('승복합니다:')
+        || redContent.includes('I concede:') || blueContent.includes('I concede:')
 
       if (isFinalRound || earlyEnd) {
-        // 리포트 생성
-        const allMessages = messagesRef.current.filter((m) => m.speaker !== 'host' || !m.isStreaming)
-        const reportResp = await fetch('/api/debate/report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            debate_id: debate.id,
-            topic: debate.topic,
-            messages: allMessages.map((m) => ({
-              speaker: m.speaker,
-              content: m.content,
-              has_fact_error: m.hasFactError,
-              fact_error_note: m.factErrorNote,
-            })),
-            language,
-          }),
-        })
-        const { report } = await reportResp.json() as { report: ReportData }
-        setReportContent(report)
-
-        // 리포트 DB 저장 (구조화된 필드 각각 저장)
-        if (debate.id) {
-          fetch('/api/debate/save-message', {
+        // report 실패 시에도 반드시 완료 처리 (무한 반복 방지)
+        try {
+          const allMessages = messagesRef.current.filter((m) => !m.isStreaming)
+          const reportResp = await fetch('/api/debate/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              action: 'save_report',
               debate_id: debate.id,
-              red_summary: report.red_summary ?? null,
-              blue_summary: report.blue_summary ?? null,
-              new_perspectives: report.new_perspectives ?? null,
-              argument_gap: report.argument_gap ?? null,
-              next_question: report.next_question ?? null,
-              fact_errors: report.fact_errors ?? null,
-              convergence_note: report.convergence_note ?? null,
-              speech_summaries: report.speech_summaries ?? null,
-              key_points: report.key_points ?? null,
-              fact_checks: report.fact_checks ?? null,
-              verdict: report.verdict ?? null,
-            }),
-          }).catch(() => {})
-        }
-
-        // DB 완료 처리
-        if (debate.id) {
-          await fetch('/api/debate/save-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'complete',
-              debate_id: debate.id,
-              status: earlyEnd ? 'early_end' : 'completed',
+              topic: debate.topic,
+              messages: allMessages.map((m) => ({ speaker: m.speaker, content: m.content, has_fact_error: m.hasFactError, fact_error_note: m.factErrorNote })),
+              language,
             }),
           })
+          if (reportResp.ok) {
+            const { report } = await reportResp.json() as { report: ReportData }
+            setReportContent(report)
+            if (debate.id) {
+              fetch('/api/debate/save-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'save_report', debate_id: debate.id,
+                  red_summary: report.red_summary ?? null, blue_summary: report.blue_summary ?? null,
+                  new_perspectives: report.new_perspectives ?? null, argument_gap: report.argument_gap ?? null,
+                  next_question: report.next_question ?? null, fact_errors: report.fact_errors ?? null,
+                  convergence_note: report.convergence_note ?? null, speech_summaries: report.speech_summaries ?? null,
+                  key_points: report.key_points ?? null, fact_checks: report.fact_checks ?? null, verdict: report.verdict ?? null,
+                }),
+              }).catch(() => {})
+            }
+            if (debate.id && !debate.is_sample) {
+              fetch('/api/debate/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ debate_id: debate.id, report }),
+              }).catch(() => {})
+            }
+          }
+        } catch {
+          // report 실패해도 토론은 종료 처리
+        } finally {
+          if (debate.id) {
+            fetch('/api/debate/save-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'complete', debate_id: debate.id, status: earlyEnd ? 'early_end' : 'completed' }),
+            }).catch(() => {})
+          }
+          setIsComplete(true)
         }
-
-        // 완료 이메일 전송 (fire-and-forget, 실패해도 무시)
-        if (debate.id && !debate.is_sample) {
-          fetch('/api/debate/complete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ debate_id: debate.id, report }),
-          }).catch(() => {})
-        }
-
-        setIsComplete(true)
       } else {
-        setCurrentRound((prev) => prev + 1)
+        const next = round + 1
+        setCurrentRound(next)
+        currentRoundRef.current = next
       }
+    } catch {
+      roundErrorCountRef.current += 1
+      setRoundErrorCount(roundErrorCountRef.current)
     } finally {
+      isRunningRef.current = false
       setIsRunning(false)
     }
-  }, [currentRound, isRunning, addStreamingMessage, updateStreamingMessage, finalizeMessage, applyFactErrors, saveMessageToDB])
+  }, [addStreamingMessage, updateStreamingMessage, finalizeMessage, applyFactErrors, saveMessageToDB])
 
-  return { messages, currentRound, isRunning, isComplete, reportContent, debateId, runRound, initDebate }
+  return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, debateId, runRound, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
 }

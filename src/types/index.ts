@@ -85,16 +85,20 @@ export interface ValidateResult {
 }
 
 export type DebaterTone = 'assertive' | 'analytical' | 'emotional' | 'socratic'
+export type DebateModel = 'claude-sonnet-4-6' | 'gemini-2-flash' | 'gpt-4o-mini'
+export type TTSVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
 
 export interface DebaterConfig {
   persona?: string
   tone?: DebaterTone
-  key_argument?: string
+  knowledge?: string
+  voice?: TTSVoice
 }
 
 export interface DebateConfig {
   red?: DebaterConfig
   blue?: DebaterConfig
+  model?: DebateModel
 }
 
 export interface DebateState {

@@ -1,5 +1,23 @@
 'use client'
 
+import { useState } from 'react'
+
+// 화면 표시: 마크다운 기호만 제거, 줄바꿈은 유지
+function cleanForDisplay(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/_{1,3}(.+?)_{1,3}/g, '$1')
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/^-{3,}$/gm, '')
+    .replace(/^={3,}$/gm, '')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/>{1,}\s*/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 interface MessageBubbleProps {
   speaker: 'red' | 'blue' | 'host'
   content: string
@@ -25,6 +43,7 @@ export default function MessageBubble({
   const isBlue = speaker === 'blue'
   const isHost = speaker === 'host'
   const delay = Math.min(index * 40, 300)
+  const [showFactNote, setShowFactNote] = useState(false)
 
   if (isHost) {
     return (
@@ -59,31 +78,31 @@ export default function MessageBubble({
 
         {/* 버블 */}
         <div
-          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed relative ${isStreaming ? 'streaming-cursor' : ''}`}
+          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed relative whitespace-pre-wrap ${isStreaming ? 'streaming-cursor' : ''}`}
           style={{
             backgroundColor: isRed ? 'var(--red-dim)' : 'var(--blue-dim)',
             border: `1.5px solid ${isRed ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)'}`,
             color: 'var(--text-primary)',
           }}
         >
-          {hasFactError ? (
-            <>
-              <span className="fact-error">{content}</span>
-              {factErrorNote && (
-                <div className="mt-2 pt-2 border-t text-xs" style={{ borderColor: 'rgba(245,158,11,0.3)', color: 'var(--gold)' }}>
-                  ⚠️ 팩트 오류: {factErrorNote}
-                </div>
-              )}
-            </>
-          ) : (
-            content
-          )}
+          {isStreaming ? content : cleanForDisplay(content)}
         </div>
 
-        {/* 팩트 오류 배지 */}
+        {/* 팩트 오류 — 토글 배지 */}
         {hasFactError && (
-          <div className="mt-1 text-xs" style={{ color: 'var(--gold)' }}>
-            🏅 팩트 오류 감지됨
+          <div className="mt-1.5">
+            <button
+              onClick={() => setShowFactNote(!showFactNote)}
+              className="text-xs font-semibold px-2 py-0.5 rounded-md transition-colors"
+              style={{ color: 'var(--gold)', backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
+            >
+              ⚠️ 팩트 확인 {showFactNote ? '▲' : '▼'}
+            </button>
+            {showFactNote && factErrorNote && (
+              <div className="mt-1 px-3 py-2 rounded-lg text-xs" style={{ backgroundColor: 'rgba(245,158,11,0.06)', color: 'var(--gold)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                {factErrorNote}
+              </div>
+            )}
           </div>
         )}
       </div>
