@@ -57,6 +57,16 @@ export default function Header() {
         {user ? (
           <div className="flex items-center gap-2">
             <Link
+              href="/debate/history"
+              className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
+              style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>
+              </svg>
+              {t('지난 토론', 'History')}
+            </Link>
+            <Link
               href="/account"
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
               style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}

@@ -54,3 +54,17 @@ export async function getDebate(debateId: string): Promise<Debate | null> {
 
   return data
 }
+
+export async function listDebates(userId: string, limit = 30): Promise<Debate[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('sparring_debates')
+    .select()
+    .eq('user_id', userId)
+    .eq('is_sample', false)
+    .in('status', ['completed', 'early_end'])
+    .order('completed_at', { ascending: false })
+    .limit(limit)
+
+  return data ?? []
+}

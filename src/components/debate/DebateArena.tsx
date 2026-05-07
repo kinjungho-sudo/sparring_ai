@@ -14,6 +14,7 @@ import type { TTSVoice } from '@/types'
 
 interface DebateArenaProps {
   debate: Debate
+  initialReport?: import('@/types').ReportData | null
 }
 
 function SampleEndPrompt({ language }: { language: string }) {
@@ -132,13 +133,14 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
   )
 }
 
-export default function DebateArena({ debate }: DebateArenaProps) {
+export default function DebateArena({ debate, initialReport }: DebateArenaProps) {
   const { language, t } = useLanguage()
   const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
   const { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed, volume, setVolume, isMuted, toggleMute } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
+  const [showReport, setShowReport] = useState(() => !!initialReport)
   const prevMessagesCountRef = useRef(0)
   const ttsPlayingRef = useRef(false)  // TTS 재생 중 여부 (자동진행 대기용)
 
@@ -234,6 +236,13 @@ export default function DebateArena({ debate }: DebateArenaProps) {
       return () => clearTimeout(timer)
     }
   }, [isComplete, debate.is_sample])
+
+  // 토론 완료 시 결론 자동 표시
+  useEffect(() => {
+    if (isComplete && reportContent) {
+      setShowReport(true)
+    }
+  }, [isComplete, reportContent])
 
   const handleNextRound = useCallback(() => {
     stop()
@@ -610,9 +619,40 @@ export default function DebateArena({ debate }: DebateArenaProps) {
         </div>
       )}
 
-      {/* 리포트 오버레이 */}
-      {isComplete && reportContent && (
-        <DebateReport report={reportContent} topic={debate.topic} debateId={debate.id} />
+      {/* 완료 후 하단 바 */}
+      {(isComplete || !!initialReport) && (
+        <div className="shrink-0 px-3 sm:px-4 py-3 border-t flex items-center gap-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-primary)' }}>
+          <button
+            onClick={() => setShowReport(true)}
+            className="flex-1 h-11 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-500 transition-colors"
+          >
+            📋 결론 보기
+          </button>
+          <Link
+            href="/debate/history"
+            className="h-11 px-4 rounded-xl border font-semibold text-sm flex items-center justify-center transition-colors hover:bg-white/5"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+          >
+            목록
+          </Link>
+          <Link
+            href="/debate/new"
+            className="h-11 px-4 rounded-xl border font-semibold text-sm flex items-center justify-center transition-colors hover:bg-white/5"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+          >
+            새 토론
+          </Link>
+        </div>
+      )}
+
+      {/* 리포트 오버레이 (토글 가능) */}
+      {showReport && (reportContent ?? initialReport) && (
+        <DebateReport
+          report={(reportContent ?? initialReport)!}
+          topic={debate.topic}
+          debateId={debate.id}
+          onClose={() => setShowReport(false)}
+        />
       )}
 
       {showSampleEnd && <SampleEndPrompt language={language} />}

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import DebateArena from '@/components/debate/DebateArena'
+import { getReport } from '@/lib/db/reports'
 import type { Debate } from '@/types'
 
 interface Props { params: Promise<{ id: string }> }
@@ -65,5 +66,8 @@ export default async function DebatePage({ params }: Props) {
     redirect('/')
   }
 
-  return <DebateArena debate={debate as Debate} />
+  const isFinished = debate.status === 'completed' || debate.status === 'early_end'
+  const report = isFinished ? await getReport(id) : null
+
+  return <DebateArena debate={debate as Debate} initialReport={report as import('@/types').ReportData | null} />
 }

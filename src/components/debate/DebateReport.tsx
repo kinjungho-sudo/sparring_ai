@@ -8,6 +8,7 @@ interface DebateReportProps {
   report: ReportData
   topic: string
   debateId?: string
+  onClose?: () => void
 }
 
 const SPEAKER_LABEL: Record<string, { label: string; color: string }> = {
@@ -55,7 +56,7 @@ function parseFactChecks(raw: unknown): ReportData['fact_checks'] {
   return null
 }
 
-export default function DebateReport({ report, topic, debateId }: DebateReportProps) {
+export default function DebateReport({ report, topic, debateId, onClose }: DebateReportProps) {
   // convergence_note에 JSON 전체가 담긴 경우 (폴백 케이스) 재파싱해서 올바른 report로 교체
   const effectiveReport: ReportData = (() => {
     if (!report.verdict && !report.speech_summaries && report.convergence_note) {
@@ -93,10 +94,24 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
         style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
       >
         {/* 헤더 */}
-        <div className="px-6 pt-6 pb-4 text-center border-b" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: 'var(--accent)' }}>FINAL CONCLUSION</p>
-          <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>최종 결론</h2>
-          <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--text-muted)' }}>{topic}</p>
+        <div className="px-6 pt-5 pb-4 border-b flex items-start gap-3" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex-1 text-center">
+            <p className="text-xs font-black uppercase tracking-widest mb-1.5" style={{ color: 'var(--accent)' }}>FINAL CONCLUSION</p>
+            <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>최종 결론</h2>
+            <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--text-muted)' }}>{topic}</p>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border transition-colors hover:bg-white/10"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+              title="닫기"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <div className="p-5 sm:p-6 space-y-5">
