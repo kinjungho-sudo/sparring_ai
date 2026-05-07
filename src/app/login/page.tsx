@@ -88,19 +88,19 @@ export default function LoginPage() {
             {mode === 'login' ? (
               <>
                 <h1 className="text-2xl font-black mb-1" style={{ color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-                  다시 오셨군요
+                  로그인
                 </h1>
                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Google 계정으로 바로 로그인하세요.
+                  Google 계정으로 로그인하세요.
                 </p>
               </>
             ) : (
               <>
                 <h1 className="text-2xl font-black mb-1" style={{ color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-                  무료로 시작하기
+                  회원가입
                 </h1>
                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Google 계정으로 5초 만에 가입하세요.<br />
+                  Google 계정으로 가입하세요.<br />
                   신용카드 불필요 · 매일 10회 무료.
                 </p>
               </>
