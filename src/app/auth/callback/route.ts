@@ -13,14 +13,17 @@ export async function GET(request: Request) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
 
-      // 신규 사용자 판별: created_at과 last_sign_in_at 차이가 10초 이내
-      const isNew = user.created_at && user.last_sign_in_at
-        ? Math.abs(new Date(user.created_at).getTime() - new Date(user.last_sign_in_at).getTime()) < 10000
-        : false
-
-      // 로그인할 때마다 프로필 upsert (신규/기존 모두) — service role로 RLS 우회
       const service = await createServiceClient()
       const meta = user.user_metadata ?? {}
+
+      // 프로필 존재 여부로 신규/기존 판별 — auth.users가 아닌 sparring_profiles 기준
+      const { data: existingProfile } = await service
+        .from('sparring_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      // 프로필 upsert (로그인마다 최신 정보 반영)
       await service.from('sparring_profiles').upsert({
         id: user.id,
         email: user.email ?? null,
@@ -29,7 +32,8 @@ export async function GET(request: Request) {
         provider: user.app_metadata?.provider ?? 'google',
       }, { onConflict: 'id' })
 
-      if (isNew) {
+      // 프로필 없었으면 신규 → 약관 동의 페이지
+      if (!existingProfile) {
         return NextResponse.redirect(`${origin}/auth/agree?next=${encodeURIComponent(next)}`)
       }
       return NextResponse.redirect(`${origin}${next}`)
