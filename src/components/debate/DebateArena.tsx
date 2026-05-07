@@ -215,7 +215,7 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
         if (!cancelled && autoModeRef.current && !isCompleteRef.current) {
           runRoundRef.current(debate, language, totalRounds)
         }
-      }, 300)
+      }, 50)
       return () => { cancelled = true; clearTimeout(timer) }
     }
 

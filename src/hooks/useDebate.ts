@@ -296,8 +296,8 @@ export function useDebate(): UseDebateReturn {
       if (debate.id) {
         const redMsg = messagesRef.current.find((m) => m.id === redId)
         const blueMsg = messagesRef.current.find((m) => m.id === blueId)
-        if (redMsg) await saveMessageToDB(debate.id, redMsg)
-        if (blueMsg) await saveMessageToDB(debate.id, blueMsg)
+        if (redMsg) saveMessageToDB(debate.id, redMsg).catch(() => {})
+        if (blueMsg) saveMessageToDB(debate.id, blueMsg).catch(() => {})
       }
 
       const earlyEnd = redContent.includes('승복합니다:') || blueContent.includes('승복합니다:')
