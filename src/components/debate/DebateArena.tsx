@@ -141,6 +141,7 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
   const [showReport, setShowReport] = useState(() => !!initialReport)
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null)
 
   // 자동 진행 모드 (기본값 true)
   const [autoMode, setAutoMode] = useState(true)
@@ -461,6 +462,16 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
                 factErrorNote={msg.factErrorNote}
                 isStreaming={msg.isStreaming}
                 index={i}
+                onSpeak={isSupported && !msg.isStreaming && (msg.speaker === 'red' || msg.speaker === 'blue') ? (content, speaker) => {
+                  stop()
+                  setSpeakingMsgId(msg.id)
+                  const cfg = speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
+                  const tone = cfg?.tone ?? 'default'
+                  const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
+                  const voice = cfg?.voice ?? voiceMap[speaker]
+                  speak(content, { speaker, lang: language, voice }).then(() => setSpeakingMsgId(null))
+                } : undefined}
+                isSpeakingThis={speakingMsgId === msg.id}
               />
               {memo && (
                 <div className="flex justify-center my-2">

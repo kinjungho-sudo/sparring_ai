@@ -27,6 +27,8 @@ interface MessageBubbleProps {
   factErrorNote: string | null
   isStreaming?: boolean
   index?: number
+  onSpeak?: (content: string, speaker: 'red' | 'blue') => void
+  isSpeakingThis?: boolean
 }
 
 export default function MessageBubble({
@@ -38,6 +40,8 @@ export default function MessageBubble({
   factErrorNote,
   isStreaming,
   index = 0,
+  onSpeak,
+  isSpeakingThis,
 }: MessageBubbleProps) {
   const isRed = speaker === 'red'
   const isBlue = speaker === 'blue'
@@ -88,19 +92,53 @@ export default function MessageBubble({
           {isStreaming ? content : cleanForDisplay(content)}
         </div>
 
-        {/* 팩트 오류 — 토글 배지 */}
-        {hasFactError && (
-          <div className="mt-1.5">
-            <button
-              onClick={() => setShowFactNote(!showFactNote)}
-              className="text-xs font-semibold px-2 py-0.5 rounded-md transition-colors"
-              style={{ color: 'var(--gold)', backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
-            >
-              ⚠️ 팩트 확인 {showFactNote ? '▲' : '▼'}
-            </button>
-            {showFactNote && factErrorNote && (
-              <div className="mt-1 px-3 py-2 rounded-lg text-xs" style={{ backgroundColor: 'rgba(245,158,11,0.06)', color: 'var(--gold)', border: '1px solid rgba(245,158,11,0.15)' }}>
-                {factErrorNote}
+        {/* 하단 액션 바 */}
+        {(hasFactError || (!isStreaming && onSpeak)) && (
+          <div className={`flex items-center gap-2 mt-1.5 ${isBlue ? 'justify-end' : 'justify-start'}`}>
+            {/* TTS 재생 버튼 */}
+            {!isStreaming && onSpeak && (isRed || isBlue) && (
+              <button
+                onClick={() => onSpeak(content, speaker as 'red' | 'blue')}
+                className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md transition-colors"
+                style={{
+                  color: isSpeakingThis ? (isRed ? '#ef4444' : '#3b82f6') : 'var(--text-muted)',
+                  backgroundColor: isSpeakingThis ? (isRed ? 'rgba(239,68,68,0.1)' : 'rgba(59,130,246,0.1)') : 'transparent',
+                  border: `1px solid ${isSpeakingThis ? (isRed ? 'rgba(239,68,68,0.3)' : 'rgba(59,130,246,0.3)') : 'rgba(255,255,255,0.08)'}`,
+                }}
+                title="이 발언 듣기"
+              >
+                {isSpeakingThis ? (
+                  <span className="flex gap-0.5 items-end h-3">
+                    {[60,100,70].map((h, i) => (
+                      <span key={i} className="w-0.5 rounded-full animate-pulse"
+                        style={{ height: `${h}%`, backgroundColor: isRed ? '#ef4444' : '#3b82f6', animationDelay: `${i*0.12}s` }} />
+                    ))}
+                  </span>
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                  </svg>
+                )}
+                <span>{isSpeakingThis ? '낭독 중' : '듣기'}</span>
+              </button>
+            )}
+
+            {/* 팩트 오류 배지 */}
+            {hasFactError && (
+              <div>
+                <button
+                  onClick={() => setShowFactNote(!showFactNote)}
+                  className="text-xs font-semibold px-2 py-0.5 rounded-md transition-colors"
+                  style={{ color: 'var(--gold)', backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
+                >
+                  ⚠️ 팩트 확인 {showFactNote ? '▲' : '▼'}
+                </button>
+                {showFactNote && factErrorNote && (
+                  <div className="mt-1 px-3 py-2 rounded-lg text-xs" style={{ backgroundColor: 'rgba(245,158,11,0.06)', color: 'var(--gold)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                    {factErrorNote}
+                  </div>
+                )}
               </div>
             )}
           </div>
