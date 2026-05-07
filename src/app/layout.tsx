@@ -4,6 +4,8 @@ import './globals.css'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import { LanguageProvider } from '@/contexts/LanguageContext'
+import { OrganizationSchema } from '@/components/seo/OrganizationSchema'
+import { WebSiteSchema } from '@/components/seo/WebSiteSchema'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sparring-ai.vercel.app'
 
@@ -13,8 +15,8 @@ export const metadata: Metadata = {
     default: '스파링 AI — 의사결정 보조 AI 토론',
     template: '%s | 스파링 AI',
   },
-  description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다. 매일 5회 무료.',
-  keywords: ['AI 토론', '의사결정', '찬반 토론', '스파링 AI', 'AI 디베이트'],
+  description: '두 AI가 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다. 의사결정이 어려울 때 AI 토론으로 명확한 답을 찾으세요. 매일 5회 무료.',
+  keywords: ['AI 토론', '의사결정 보조', '찬반 토론', '스파링 AI', 'AI 디베이트', 'AI 토론 서비스', '의사결정 AI', '토론 AI', '찬반 AI 토론', '결정 도우미'],
   authors: [{ name: '스파링 AI' }],
   creator: '스파링 AI',
   openGraph: {
@@ -40,6 +42,18 @@ export const metadata: Metadata = {
   alternates: {
     canonical: BASE_URL,
   },
+  verification: {
+    google: 'google-site-verification',
+  },
+  manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+  },
 }
 
 export default function RootLayout({
@@ -57,6 +71,8 @@ export default function RootLayout({
           gtag('js', new Date());
           gtag('config', 'G-T2EY4Q1S4X');
         `}</Script>
+        <OrganizationSchema />
+        <WebSiteSchema />
         <LanguageProvider>
           <Header />
           <main className="flex-1">{children}</main>

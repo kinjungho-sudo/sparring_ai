@@ -1,0 +1,25 @@
+# 스파링 AI
+
+> AI 두 명이 찬반으로 격돌하는 동안, 사용자는 스스로 결론에 도달합니다 — 의사결정 보조 AI 토론 서비스
+
+스파링 AI는 의사결정이 필요한 주제를 입력하면 RED AI(찬성)와 BLUE AI(반대)가 라운드별로 치열하게 논쟁하는 서비스입니다. 사회자 AI가 실시간 팩트체크를 수행하고, 토론 종료 후 중립적 리포트를 자동 생성합니다. Anthropic Claude Sonnet 4.6 기반으로 작동합니다.
+
+## 주요 페이지
+
+- [홈](https://sparring-ai-ten.vercel.app/): 서비스 소개, 데모 애니메이션, 가격 안내
+- [새 토론 시작](https://sparring-ai-ten.vercel.app/debate/new): 의제 입력 및 AI 토론 설정
+- [로그인](https://sparring-ai-ten.vercel.app/login): Google 계정으로 로그인/회원가입
+- [내 계정](https://sparring-ai-ten.vercel.app/account): 토론 이력 및 사용량 확인
+
+## Optional
+
+- [이용약관](https://sparring-ai-ten.vercel.app/terms)
+- [개인정보처리방침](https://sparring-ai-ten.vercel.app/privacy)
+
+## 서비스 특징
+
+- RED AI(찬성) vs BLUE AI(반대) 구조적 토론
+- 사회자 AI의 실시간 팩트체크
+- 토론 종료 후 중립 리포트 자동 생성
+- 매일 5회 무료, 로그인 불필요 체험 가능
+- TTS 음성 지원으로 토론 청취 가능

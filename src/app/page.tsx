@@ -1,3 +1,4 @@
+import { FAQSchema } from '@/components/seo/FAQSchema'
 import HeroSection from '@/components/landing/HeroSection'
 import DemoSection from '@/components/landing/DemoSection'
 import PainPointSection from '@/components/landing/PainPointSection'
@@ -9,6 +10,7 @@ import WaitlistSection from '@/components/landing/WaitlistSection'
 export default function HomePage() {
   return (
     <>
+      <FAQSchema />
       {/* 1. 히어로 — "결론이 안 나는 고민이 있나요?" */}
       <HeroSection />
 
