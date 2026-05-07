@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
     }
 
-    // 일 3회 제한 체크 (로그인 유저에만 적용)
+    // 사용량 제한 체크 (로그인 유저에만 적용, pro는 무제한)
     if (user && !is_sample) {
-      const { allowed, count } = await checkAndIncrementUsage(user.id)
+      const { allowed, count, plan } = await checkAndIncrementUsage(user.id)
       if (!allowed) {
-        return NextResponse.json({ error: 'USAGE_LIMIT', count }, { status: 429 })
+        return NextResponse.json({ error: 'USAGE_LIMIT', count, plan }, { status: 429 })
       }
     }
 

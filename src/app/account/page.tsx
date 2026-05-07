@@ -5,8 +5,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '내 계정' }
 
-const DAILY_LIMIT = process.env.DAILY_LIMIT ? parseInt(process.env.DAILY_LIMIT) : 3
-const IS_UNLIMITED = DAILY_LIMIT === 0
+const FREE_DAILY_LIMIT = process.env.FREE_DAILY_LIMIT ? parseInt(process.env.FREE_DAILY_LIMIT) : 3
 
 interface Debate {
   id: string
@@ -28,7 +27,7 @@ export default async function AccountPage() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  const [{ data: debates }, { data: todayUsage }] = await Promise.all([
+  const [{ data: debates }, { data: todayUsage }, { data: profile }] = await Promise.all([
     service
       .from('sparring_debates')
       .select('id, topic, status, rounds, language, is_public, created_at, completed_at')
@@ -41,8 +40,17 @@ export default async function AccountPage() {
       .eq('user_id', user.id)
       .eq('date', today)
       .single(),
+    service
+      .from('sparring_profiles')
+      .select('plan, plan_expires_at')
+      .eq('id', user.id)
+      .single(),
   ])
 
+  const rawPlan = profile?.plan ?? 'free'
+  const isPlanExpired = profile?.plan_expires_at && new Date(profile.plan_expires_at) < new Date()
+  const userPlan: 'free' | 'pro' = (rawPlan === 'pro' && !isPlanExpired) ? 'pro' : 'free'
+  const isPro = userPlan === 'pro'
   const usedToday = todayUsage?.count ?? 0
   const totalDebates = debates?.length ?? 0
   const completedDebates = (debates ?? []).filter((d: Debate) => d.status === 'completed').length
@@ -67,15 +75,23 @@ export default async function AccountPage() {
           </div>
           <span
             className="text-xs font-black px-3 py-1 rounded-full"
-            style={{ color: 'var(--accent)', backgroundColor: 'var(--accent-dim)' }}
+            style={{
+              color: isPro ? '#f59e0b' : 'var(--accent)',
+              backgroundColor: isPro ? 'rgba(245,158,11,0.12)' : 'var(--accent-dim)',
+            }}
           >
-            BETA
+            {isPro ? '⭐ PRO' : 'FREE'}
           </span>
         </div>
+        {isPro && profile?.plan_expires_at && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            만료일: {new Date(profile.plan_expires_at).toLocaleDateString('ko-KR')}
+          </p>
+        )}
         <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4 text-center" style={{ borderColor: 'var(--border)' }}>
           <div>
             <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-              {IS_UNLIMITED ? '∞' : `${usedToday}/${DAILY_LIMIT}`}
+              {isPro ? `${usedToday} / ∞` : `${usedToday} / ${FREE_DAILY_LIMIT}`}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>오늘 사용</p>
           </div>

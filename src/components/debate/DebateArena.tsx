@@ -214,23 +214,25 @@ export default function DebateArena({ debate }: DebateArenaProps) {
                   if (!cancelled && autoModeRef.current && !isCompleteRef.current) {
                     runRoundRef.current(debate, language, totalRounds)
                   }
-                }, 600)
+                }, 300)
               }
             }
           : undefined
       )
-    } else if (latest.speaker === 'blue' && autoModeRef.current && !isCompleteRef.current && !isRunning && roundErrorCount < 2) {
-      // TTS OFF: BLUE 완료 1200ms 후 다음 라운드
+    } else if (latest.speaker === 'blue' && autoModeRef.current && !isCompleteRef.current && roundErrorCount < 2) {
+      // TTS OFF: BLUE 완료 300ms 후 다음 라운드 (isRunning 의존성 제거 — 경쟁 조건 방지)
       const timer = setTimeout(() => {
         if (!cancelled && autoModeRef.current && !isCompleteRef.current) {
           runRoundRef.current(debate, language, totalRounds)
         }
-      }, 1200)
+      }, 300)
       return () => { cancelled = true; clearTimeout(timer) }
     }
 
     return () => { cancelled = true }
-  }, [messages, isRunning, roundErrorCount, debate, language, totalRounds])
+  // isRunning을 의존성에서 제거 — isRunning 변경 시 effect 재실행되면 cancelled=true로 타이머 취소됨
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, roundErrorCount, debate, language, totalRounds])
 
   // 스크롤: 새 메시지 오면 하단으로
   useEffect(() => {
@@ -270,6 +272,10 @@ export default function DebateArena({ debate }: DebateArenaProps) {
   }
 
   const isDebating = messages.length > 0 && !isComplete
+
+  // 현재 스트리밍 중인 화자
+  const streamingMsg = messages.find((m) => m.isStreaming)
+  const streamingSpeaker = streamingMsg?.speaker ?? null
 
   return (
     // 토론 중: 뷰포트 전체 고정, 푸터/스크롤 차단
@@ -489,10 +495,35 @@ export default function DebateArena({ debate }: DebateArenaProps) {
           )}
 
           {autoMode && messages.length > 0 && isRunning && (
-            <div className="w-full h-12 flex items-center justify-center gap-2 rounded-xl" style={{ backgroundColor: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent)' }} />
-              <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                {t(`라운드 ${currentRound} 진행 중...`, `Round ${currentRound} in progress...`)}
+            <div className="w-full h-12 flex items-center justify-center gap-3 rounded-xl overflow-hidden relative"
+              style={{
+                backgroundColor: streamingSpeaker === 'red'
+                  ? 'rgba(239,68,68,0.08)'
+                  : streamingSpeaker === 'blue'
+                    ? 'rgba(59,130,246,0.08)'
+                    : 'rgba(99,102,241,0.08)',
+                border: `1px solid ${streamingSpeaker === 'red' ? 'rgba(239,68,68,0.3)' : streamingSpeaker === 'blue' ? 'rgba(59,130,246,0.3)' : 'rgba(99,102,241,0.2)'}`,
+              }}>
+              {/* 물결 애니메이션 */}
+              <span className="flex gap-0.5 items-end h-4">
+                {[0, 1, 2, 3].map((i) => (
+                  <span key={i} className="w-0.5 rounded-full animate-pulse"
+                    style={{
+                      height: `${[60, 100, 70, 85][i]}%`,
+                      backgroundColor: streamingSpeaker === 'red' ? '#ef4444' : streamingSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
+                      animationDelay: `${i * 0.12}s`,
+                    }} />
+                ))}
+              </span>
+              <span className="text-sm font-bold"
+                style={{
+                  color: streamingSpeaker === 'red' ? '#ef4444' : streamingSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
+                }}>
+                {streamingSpeaker === 'red'
+                  ? t(`🔴 RED 발언 중 — 라운드 ${currentRound}`, `🔴 RED speaking — Round ${currentRound}`)
+                  : streamingSpeaker === 'blue'
+                    ? t(`🔵 BLUE 발언 중 — 라운드 ${currentRound}`, `🔵 BLUE speaking — Round ${currentRound}`)
+                    : t(`라운드 ${currentRound} 진행 중...`, `Round ${currentRound} in progress...`)}
               </span>
             </div>
           )}

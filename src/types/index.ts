@@ -1,4 +1,5 @@
 export type Language = 'ko' | 'en'
+export type UserPlan = 'free' | 'pro'
 export type Speaker = 'red' | 'blue' | 'host'
 export type DebateStatus = 'in_progress' | 'completed' | 'early_end'
 export type TopicType = 'factual' | 'strategic' | 'values' | 'legal_medical_investment'
