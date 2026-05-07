@@ -15,8 +15,54 @@ const SPEAKER_LABEL: Record<string, { label: string; color: string }> = {
   blue: { label: '🔵 BLUE', color: '#6366f1' },
 }
 
+function parseVerdict(raw: ReportData['verdict']): ReportData['verdict'] {
+  if (!raw) return null
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return parsed?.verdict ?? parsed
+    } catch {
+      return null
+    }
+  }
+  return raw
+}
+
+function parseStringArray(raw: unknown): string[] | null {
+  if (!raw) return null
+  if (Array.isArray(raw)) return raw as string[]
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) } catch { return null }
+  }
+  return null
+}
+
+function parseSpeechSummaries(raw: unknown): ReportData['speech_summaries'] {
+  if (!raw) return null
+  if (Array.isArray(raw)) return raw as ReportData['speech_summaries']
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) } catch { return null }
+  }
+  return null
+}
+
+function parseFactChecks(raw: unknown): ReportData['fact_checks'] {
+  if (!raw) return null
+  if (Array.isArray(raw)) return raw as ReportData['fact_checks']
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) } catch { return null }
+  }
+  return null
+}
+
 export default function DebateReport({ report, topic, debateId }: DebateReportProps) {
-  const winner = report.verdict?.winner
+  // AI가 JSON 문자열을 필드에 직접 넣는 경우 파싱
+  const verdict = parseVerdict(report.verdict)
+  const speechSummaries = parseSpeechSummaries(report.speech_summaries)
+  const keyPoints = parseStringArray(report.key_points)
+  const factChecks = parseFactChecks(report.fact_checks)
+
+  const winner = verdict?.winner
   const winnerColor = winner ? (winner === 'red' ? '#ef4444' : '#6366f1') : undefined
   const winnerLabel = winner ? (winner === 'red' ? '🔴 RED 찬성' : '🔵 BLUE 반대') : null
 
@@ -39,11 +85,11 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
         <div className="p-5 sm:p-6 space-y-5">
 
           {/* 1) 발언 요약 */}
-          {report.speech_summaries && report.speech_summaries.length > 0 && (
+          {speechSummaries && speechSummaries.length > 0 && (
             <section className="report-section" style={{ animationDelay: '0ms' }}>
               <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>① 각 발언 요약</p>
               <div className="space-y-2">
-                {report.speech_summaries.map((s, i) => {
+                {speechSummaries.map((s, i) => {
                   const sp = SPEAKER_LABEL[s.speaker] ?? { label: s.speaker, color: 'var(--text-muted)' }
                   return (
                     <div key={i} className="flex gap-3 items-start">
@@ -62,11 +108,11 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
           )}
 
           {/* 2) 핵심 논점 */}
-          {report.key_points && report.key_points.length > 0 && (
+          {keyPoints && keyPoints.length > 0 && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', animationDelay: '80ms' }}>
               <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>② 핵심 논점 정리</p>
               <ul className="space-y-2">
-                {report.key_points.map((pt, i) => (
+                {keyPoints.map((pt, i) => (
                   <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                     <span className="font-black shrink-0 text-xs pt-0.5" style={{ color: 'var(--accent)' }}>{i + 1}.</span>
                     <span className="leading-relaxed">{pt}</span>
@@ -77,11 +123,11 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
           )}
 
           {/* 3) 주장 검증 (팩트 체크) */}
-          {report.fact_checks && report.fact_checks.length > 0 && (
+          {factChecks && factChecks.length > 0 && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.05)', animationDelay: '160ms' }}>
               <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>③ 주장 검증 (팩트 체크)</p>
               <ul className="space-y-1.5">
-                {report.fact_checks.map((fc, i) => {
+                {factChecks.map((fc, i) => {
                   const sp = SPEAKER_LABEL[fc.speaker] ?? { label: fc.speaker, color: 'var(--text-muted)' }
                   return (
                     <li key={i} className="text-sm flex gap-2" style={{ color: 'var(--text-secondary)' }}>
@@ -95,7 +141,7 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
           )}
 
           {/* 레거시 팩트 오류 (이전 저장 데이터 호환) */}
-          {!report.fact_checks && report.fact_errors && report.fact_errors.length > 0 && (
+          {!factChecks && report.fact_errors && report.fact_errors.length > 0 && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.05)', animationDelay: '160ms' }}>
               <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>③ 팩트 오류</p>
               <ul className="space-y-1">
@@ -109,7 +155,7 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
           )}
 
           {/* 4) 최종 의견 / 주장 우위 */}
-          {report.verdict && (
+          {verdict && (
             <section className="report-section" style={{ animationDelay: '240ms' }}>
               <div
                 className="p-5 rounded-xl border"
@@ -126,15 +172,15 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm font-black" style={{ color: winnerColor }}>{winnerLabel} 주장 우위</span>
                     </div>
-                    {report.verdict.reason && (
-                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{report.verdict.reason}</p>
+                    {verdict.reason && (
+                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{verdict.reason}</p>
                     )}
                   </>
                 ) : (
                   <>
                     <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>결론 없음 — 의견 정리</p>
-                    {report.verdict.conclusion && (
-                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{report.verdict.conclusion}</p>
+                    {verdict.conclusion && (
+                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{verdict.conclusion}</p>
                     )}
                   </>
                 )}
@@ -143,7 +189,7 @@ export default function DebateReport({ report, topic, debateId }: DebateReportPr
           )}
 
           {/* 레거시 수렴 판정 호환 */}
-          {!report.verdict && report.convergence_note && (
+          {!verdict && report.convergence_note && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', animationDelay: '240ms' }}>
               <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>⚖️ 수렴 판정</p>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{report.convergence_note}</p>

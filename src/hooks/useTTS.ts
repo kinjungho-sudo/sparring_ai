@@ -61,16 +61,28 @@ function pickBrowserVoice(voices: SpeechSynthesisVoice[], lang: string, preferIn
   return pool[preferIndex % pool.length] ?? pool[0]
 }
 
+export const TTS_SPEEDS = [1.0, 1.25, 1.5, 1.75, 2.0] as const
+export type TTSSpeed = typeof TTS_SPEEDS[number]
+
 export function useTTS() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [ttsEnabled, setTtsEnabled] = useState(false)
   const [isSupported, setIsSupported] = useState(false)
+  const [speed, setSpeed] = useState<TTSSpeed>(1.0)
 
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const openaiAvailableRef = useRef<boolean | null>(null)
   const ttsEnabledRef = useRef(false)
+  const speedRef = useRef<TTSSpeed>(1.0)
+
+  const setSpeedSync = useCallback((s: TTSSpeed) => {
+    speedRef.current = s
+    setSpeed(s)
+    // 현재 재생 중인 오디오에 즉시 적용
+    if (audioRef.current) audioRef.current.playbackRate = s
+  }, [])
 
   // 직렬 큐
   const queueRef = useRef<QueueItem[]>([])
@@ -125,6 +137,7 @@ export function useTTS() {
 
       return new Promise<void>((resolve) => {
         const audio = new Audio(url)
+        audio.playbackRate = speedRef.current
         audioRef.current = audio
         let settled = false
         const done = () => {
@@ -155,7 +168,7 @@ export function useTTS() {
       window.speechSynthesis.cancel()
       const utter = new SpeechSynthesisUtterance(text)
       utter.lang = options.lang === 'en' ? 'en-US' : 'ko-KR'
-      utter.rate = options.speaker === 'red' ? 0.92 : 1.0
+      utter.rate = (options.speaker === 'red' ? 0.92 : 1.0) * speedRef.current
       utter.pitch = options.speaker === 'red' ? 0.80 : 1.15
       const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices()
       const voice = pickBrowserVoice(voices, utter.lang, options.speaker === 'red' ? 0 : 1)
@@ -246,5 +259,5 @@ export function useTTS() {
     setIsPaused(false)
   }, [])
 
-  return { speak, stop, pause, resume, isSpeaking, isPaused, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported }
+  return { speak, stop, pause, resume, isSpeaking, isPaused, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported, speed, setSpeed: setSpeedSync }
 }

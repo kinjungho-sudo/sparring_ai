@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button'
 import type { Debate } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useDebate } from '@/hooks/useDebate'
-import { useTTS, TONE_VOICE_MAP } from '@/hooks/useTTS'
+import { useTTS, TONE_VOICE_MAP, TTS_SPEEDS } from '@/hooks/useTTS'
 import type { TTSVoice } from '@/types'
 
 interface DebateArenaProps {
@@ -135,7 +135,7 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
 export default function DebateArena({ debate }: DebateArenaProps) {
   const { language, t } = useLanguage()
   const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
-  const { speak, stop, pause, resume, isSpeaking, isPaused, ttsEnabled, setTtsEnabled, isSupported } = useTTS()
+  const { speak, stop, pause, resume, isSpeaking, isPaused, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
@@ -335,6 +335,25 @@ export default function DebateArena({ debate }: DebateArenaProps) {
           {/* TTS 토글 */}
           {isSupported && (
             <div className="flex items-center gap-1">
+              {/* 배속 선택 — TTS 켜져 있을 때만 표시 */}
+              {ttsEnabled && (
+                <div className="flex gap-0.5">
+                  {TTS_SPEEDS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSpeed(s)}
+                      className="text-[10px] font-bold px-1.5 py-1 rounded transition-all"
+                      style={{
+                        backgroundColor: speed === s ? 'rgba(99,102,241,0.2)' : 'transparent',
+                        color: speed === s ? 'var(--accent)' : 'var(--text-muted)',
+                        border: speed === s ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
+                      }}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* pause/resume — TTS 재생 중일 때만 표시 */}
               {ttsEnabled && isSpeaking && (
                 <button
