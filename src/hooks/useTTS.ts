@@ -70,6 +70,7 @@ export function useTTS() {
   const [ttsEnabled, setTtsEnabled] = useState(false)
   const [isSupported, setIsSupported] = useState(false)
   const [speed, setSpeed] = useState<TTSSpeed>(1.0)
+  const [ttsSpeaker, setTtsSpeaker] = useState<'red' | 'blue' | null>(null)
 
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -119,6 +120,7 @@ export function useTTS() {
 
     try {
       setIsSpeaking(true)
+      setTtsSpeaker(options.speaker)
       const resp = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,6 +147,7 @@ export function useTTS() {
           settled = true
           setIsSpeaking(false)
           setIsPaused(false)
+          setTtsSpeaker(null)
           isPausedRef.current = false
           URL.revokeObjectURL(url)
           audioRef.current = null
@@ -173,9 +176,9 @@ export function useTTS() {
       const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices()
       const voice = pickBrowserVoice(voices, utter.lang, options.speaker === 'red' ? 0 : 1)
       if (voice) utter.voice = voice
-      utter.onstart = () => setIsSpeaking(true)
-      utter.onend = () => { setIsSpeaking(false); setIsPaused(false); resolve() }
-      utter.onerror = () => { setIsSpeaking(false); setIsPaused(false); resolve() }
+      utter.onstart = () => { setIsSpeaking(true); setTtsSpeaker(options.speaker) }
+      utter.onend = () => { setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null); resolve() }
+      utter.onerror = () => { setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null); resolve() }
       window.speechSynthesis.speak(utter)
     })
   }
@@ -257,7 +260,8 @@ export function useTTS() {
     }
     setIsSpeaking(false)
     setIsPaused(false)
+    setTtsSpeaker(null)
   }, [])
 
-  return { speak, stop, pause, resume, isSpeaking, isPaused, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported, speed, setSpeed: setSpeedSync }
+  return { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported, speed, setSpeed: setSpeedSync }
 }

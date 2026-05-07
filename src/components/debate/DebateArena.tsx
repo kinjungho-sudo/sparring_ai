@@ -135,7 +135,7 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
 export default function DebateArena({ debate }: DebateArenaProps) {
   const { language, t } = useLanguage()
   const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
-  const { speak, stop, pause, resume, isSpeaking, isPaused, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed } = useTTS()
+  const { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
@@ -273,9 +273,10 @@ export default function DebateArena({ debate }: DebateArenaProps) {
 
   const isDebating = messages.length > 0 && !isComplete
 
-  // 현재 스트리밍 중인 화자
+  // 현재 활성 화자: TTS 재생 중이면 ttsSpeaker 우선, 아니면 스트리밍 중인 화자
   const streamingMsg = messages.find((m) => m.isStreaming)
   const streamingSpeaker = streamingMsg?.speaker ?? null
+  const activeSpeaker = (ttsEnabled && isSpeaking && ttsSpeaker) ? ttsSpeaker : streamingSpeaker
 
   return (
     // 토론 중: 뷰포트 전체 고정, 푸터/스크롤 차단
@@ -513,15 +514,15 @@ export default function DebateArena({ debate }: DebateArenaProps) {
             </Button>
           )}
 
-          {autoMode && messages.length > 0 && isRunning && (
+          {(autoMode && messages.length > 0 && isRunning) || (ttsEnabled && isSpeaking) ? (
             <div className="w-full h-12 flex items-center justify-center gap-3 rounded-xl overflow-hidden relative"
               style={{
-                backgroundColor: streamingSpeaker === 'red'
+                backgroundColor: activeSpeaker === 'red'
                   ? 'rgba(239,68,68,0.08)'
-                  : streamingSpeaker === 'blue'
+                  : activeSpeaker === 'blue'
                     ? 'rgba(59,130,246,0.08)'
                     : 'rgba(99,102,241,0.08)',
-                border: `1px solid ${streamingSpeaker === 'red' ? 'rgba(239,68,68,0.3)' : streamingSpeaker === 'blue' ? 'rgba(59,130,246,0.3)' : 'rgba(99,102,241,0.2)'}`,
+                border: `1px solid ${activeSpeaker === 'red' ? 'rgba(239,68,68,0.3)' : activeSpeaker === 'blue' ? 'rgba(59,130,246,0.3)' : 'rgba(99,102,241,0.2)'}`,
               }}>
               {/* 물결 애니메이션 */}
               <span className="flex gap-0.5 items-end h-4">
@@ -529,23 +530,29 @@ export default function DebateArena({ debate }: DebateArenaProps) {
                   <span key={i} className="w-0.5 rounded-full animate-pulse"
                     style={{
                       height: `${[60, 100, 70, 85][i]}%`,
-                      backgroundColor: streamingSpeaker === 'red' ? '#ef4444' : streamingSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
+                      backgroundColor: activeSpeaker === 'red' ? '#ef4444' : activeSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
                       animationDelay: `${i * 0.12}s`,
                     }} />
                 ))}
               </span>
               <span className="text-sm font-bold"
                 style={{
-                  color: streamingSpeaker === 'red' ? '#ef4444' : streamingSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
+                  color: activeSpeaker === 'red' ? '#ef4444' : activeSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
                 }}>
-                {streamingSpeaker === 'red'
-                  ? t(`🔴 RED 발언 중 — 라운드 ${currentRound}`, `🔴 RED speaking — Round ${currentRound}`)
-                  : streamingSpeaker === 'blue'
-                    ? t(`🔵 BLUE 발언 중 — 라운드 ${currentRound}`, `🔵 BLUE speaking — Round ${currentRound}`)
+                {activeSpeaker === 'red'
+                  ? t(
+                      ttsEnabled && isSpeaking ? `🔴 RED 낭독 중 — 라운드 ${currentRound}` : `🔴 RED 발언 중 — 라운드 ${currentRound}`,
+                      ttsEnabled && isSpeaking ? `🔴 RED reading — Round ${currentRound}` : `🔴 RED speaking — Round ${currentRound}`
+                    )
+                  : activeSpeaker === 'blue'
+                    ? t(
+                        ttsEnabled && isSpeaking ? `🔵 BLUE 낭독 중 — 라운드 ${currentRound}` : `🔵 BLUE 발언 중 — 라운드 ${currentRound}`,
+                        ttsEnabled && isSpeaking ? `🔵 BLUE reading — Round ${currentRound}` : `🔵 BLUE speaking — Round ${currentRound}`
+                      )
                     : t(`라운드 ${currentRound} 진행 중...`, `Round ${currentRound} in progress...`)}
               </span>
             </div>
-          )}
+          ) : null}
 
           {autoMode && messages.length > 0 && !isRunning && roundErrorCount >= 2 && (
             <div className="w-full px-4 py-3 rounded-xl flex items-center justify-between gap-3" style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
