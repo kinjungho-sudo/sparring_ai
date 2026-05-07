@@ -57,19 +57,40 @@ function parseFactChecks(raw: unknown): ReportData['fact_checks'] {
 }
 
 export default function DebateReport({ report, topic, debateId, onClose }: DebateReportProps) {
-  // convergence_note에 JSON 전체가 담긴 경우 (폴백 케이스) 재파싱해서 올바른 report로 교체
+  // convergence_note에 JSON이 담긴 경우 (폴백 케이스) 재파싱 — 잘린 JSON도 괄호 보완 후 복구
   const effectiveReport: ReportData = (() => {
     if (!report.verdict && !report.speech_summaries && report.convergence_note) {
       try {
-        const start = report.convergence_note.indexOf('{')
-        const end = report.convergence_note.lastIndexOf('}')
-        if (start !== -1 && end > start) {
-          const parsed = JSON.parse(report.convergence_note.slice(start, end + 1))
-          if (parsed && typeof parsed === 'object' && (parsed.verdict || parsed.speech_summaries)) {
-            return { ...report, ...parsed, convergence_note: undefined }
-          }
+        // 코드블록 제거 후 { 부터 추출
+        const stripped = report.convergence_note.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '')
+        const start = stripped.indexOf('{')
+        if (start === -1) return report
+        let jsonStr = stripped.slice(start)
+
+        // 완전한 JSON 먼저 시도
+        const end = jsonStr.lastIndexOf('}')
+        if (end > 0) {
+          try {
+            const parsed = JSON.parse(jsonStr.slice(0, end + 1))
+            if (parsed?.speech_summaries || parsed?.verdict) {
+              return { ...report, ...parsed, convergence_note: undefined }
+            }
+          } catch { /* 잘린 경우 아래에서 처리 */ }
         }
-      } catch { /* 원본 유지 */ }
+
+        // 잘린 JSON — 열린 문자열 먼저 닫고 괄호 보완 후 재시도
+        const quoteCount = (jsonStr.match(/(?<!\\)"/g) ?? []).length
+        if (quoteCount % 2 !== 0) jsonStr += '"'
+        const openB = (jsonStr.match(/\{/g) ?? []).length
+        const closeB = (jsonStr.match(/\}/g) ?? []).length
+        const openBr = (jsonStr.match(/\[/g) ?? []).length
+        const closeBr = (jsonStr.match(/\]/g) ?? []).length
+        jsonStr += ']'.repeat(Math.max(0, openBr - closeBr)) + '}'.repeat(Math.max(0, openB - closeB))
+        const parsed = JSON.parse(jsonStr)
+        if (parsed?.speech_summaries || parsed?.verdict || parsed?.key_points) {
+          return { ...report, ...parsed, convergence_note: undefined }
+        }
+      } catch { /* 복구 불가 — 원본 유지 */ }
     }
     return report
   })()

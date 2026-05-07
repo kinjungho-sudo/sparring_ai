@@ -50,6 +50,8 @@ export async function POST(req: NextRequest) {
           report = JSON.parse(jsonStr)
         } catch {
           // 4) JSON이 중간에 잘린 경우 — 닫는 괄호 보완 후 재시도
+          const quoteCount = (jsonStr.match(/(?<!\\)"/g) ?? []).length
+          if (quoteCount % 2 !== 0) jsonStr += '"'
           const openBraces = (jsonStr.match(/\{/g) ?? []).length
           const closeBraces = (jsonStr.match(/\}/g) ?? []).length
           const openBrackets = (jsonStr.match(/\[/g) ?? []).length
