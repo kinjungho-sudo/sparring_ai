@@ -142,7 +142,6 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
   const [showReport, setShowReport] = useState(() => !!initialReport)
   const prevMessagesCountRef = useRef(0)
-  const ttsPlayingRef = useRef(false)  // TTS 재생 중 여부 (자동진행 대기용)
 
   // 자동 진행 모드 (기본값 true)
   const [autoMode, setAutoMode] = useState(true)
@@ -179,16 +178,12 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
     }
   }, [debate, initDebate])
 
-  const runRoundRef = useRef(runRound)
-  runRoundRef.current = runRound
-  const isCompleteRef = useRef(isComplete)
-  isCompleteRef.current = isComplete
   const speakRef = useRef(speak)
   speakRef.current = speak
   const ttsEnabledRef = useRef(ttsEnabled)
   ttsEnabledRef.current = ttsEnabled
 
-  // 새 메시지 완료 시: TTS 큐에 추가 + BLUE 완료 즉시 다음 라운드 자동 진행 (TTS와 독립)
+  // 새 메시지 완료 시: TTS 큐에 추가 (라운드 진행은 useDebate 내부에서 직접 처리)
   useEffect(() => {
     const completed = messages.filter((m) => !m.isStreaming && (m.speaker === 'red' || m.speaker === 'blue'))
     if (completed.length <= prevMessagesCountRef.current) return
@@ -196,8 +191,6 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
     const latest = completed[completed.length - 1]
     prevMessagesCountRef.current = completed.length
     if (!latest) return
-
-    let cancelled = false
 
     // TTS 큐에 추가 (라운드 진행과 독립적으로 재생)
     if (ttsEnabledRef.current) {
@@ -208,20 +201,8 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
       const voice: TTSVoice = cfg?.voice ?? voiceMap[speaker]
       speakRef.current(latest.content, { speaker, lang: language, voice })
     }
-
-    // BLUE 완료 시 다음 라운드 즉시 진행 (TTS ON/OFF 무관)
-    if (latest.speaker === 'blue' && autoModeRef.current && !isCompleteRef.current && roundErrorCount < 2) {
-      const timer = setTimeout(() => {
-        if (!cancelled && autoModeRef.current && !isCompleteRef.current) {
-          runRoundRef.current(debate, language, totalRounds)
-        }
-      }, 50)
-      return () => { cancelled = true; clearTimeout(timer) }
-    }
-
-    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, roundErrorCount, debate, language, totalRounds])
+  }, [messages, debate, language])
 
   // 스크롤: 새 메시지 오면 하단으로
   useEffect(() => {
@@ -246,7 +227,7 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
 
   const handleNextRound = useCallback(() => {
     stop()
-    runRound(debate, language, totalRounds)
+    runRound(debate, language, totalRounds, autoModeRef.current)
   }, [stop, runRound, debate, language, totalRounds])
 
   const toggleAutoMode = () => {

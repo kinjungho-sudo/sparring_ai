@@ -25,7 +25,7 @@ interface UseDebateReturn {
   roundErrorCount: number
   reportContent: ReportData | null
   debateId: string | null
-  runRound: (debate: Debate, language: Language, overrideTotalRounds?: number) => Promise<void>
+  runRound: (debate: Debate, language: Language, overrideTotalRounds?: number, autoMode?: boolean) => Promise<void>
   initDebate: (debate: Debate) => void
   adjustTotalRounds: (n: number) => void
   resetRoundError: () => void
@@ -87,6 +87,8 @@ export function useDebate(): UseDebateReturn {
   const totalRoundsRef = useRef(7)
   const isRunningRef = useRef(false)
   const roundErrorCountRef = useRef(0)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const runRoundRef = useRef<any>(null)
 
   const addStreamingMessage = useCallback((id: string, speaker: 'red' | 'blue' | 'host', roundNumber: number, isFinalRound: boolean) => {
     const msg: LocalMessage = { id, speaker, content: '', roundNumber, isFinalRound, hasFactError: false, factErrorNote: null, tokenCount: null, isStreaming: true }
@@ -215,7 +217,7 @@ export function useDebate(): UseDebateReturn {
     }
   }, [])
 
-  const runRound = useCallback(async (debate: Debate, language: Language, overrideTotalRounds?: number) => {
+  const runRound = useCallback(async (debate: Debate, language: Language, overrideTotalRounds?: number, autoMode = false) => {
     if (isRunningRef.current) return
     isRunningRef.current = true
     setIsRunning(true)
@@ -358,6 +360,14 @@ export function useDebate(): UseDebateReturn {
         const next = round + 1
         setCurrentRound(next)
         currentRoundRef.current = next
+
+        // 자동 모드: 다음 라운드 즉시 호출 (DebateArena useEffect 경유 없이)
+        if (autoMode) {
+          isRunningRef.current = false
+          setIsRunning(false)
+          runRoundRef.current(debate, language, overrideTotalRounds ?? totalRoundsRef.current, true)
+          return
+        }
       }
     } catch {
       roundErrorCountRef.current += 1
@@ -367,6 +377,8 @@ export function useDebate(): UseDebateReturn {
       setIsRunning(false)
     }
   }, [addStreamingMessage, updateStreamingMessage, finalizeMessage, applyFactErrors, saveMessageToDB])
+
+  runRoundRef.current = runRound
 
   return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, debateId, runRound, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
 }
