@@ -45,14 +45,12 @@ async function extractTextFromFile(file: File): Promise<string> {
 function TopicFileAttach({ onExtract }: { onExtract: (text: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       alert('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.')
-      e.target.value = ''
       return
     }
     setIsLoading(true)
@@ -61,21 +59,41 @@ function TopicFileAttach({ onExtract }: { onExtract: (text: string) => void }) {
       onExtract(text)
     } finally {
       setIsLoading(false)
-      e.target.value = ''
     }
+  }
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await processFile(file)
+    e.target.value = ''
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) await processFile(file)
   }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        disabled={isLoading}
-        className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors hover:bg-white/5 disabled:opacity-50"
-        style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => !isLoading && fileRef.current?.click()}
+        className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors cursor-pointer"
+        style={{
+          borderColor: isDragging ? 'var(--accent)' : 'var(--border)',
+          color: isDragging ? 'var(--accent)' : 'var(--text-muted)',
+          backgroundColor: isDragging ? 'rgba(99,102,241,0.06)' : 'transparent',
+          opacity: isLoading ? 0.5 : 1,
+          pointerEvents: isLoading ? 'none' : 'auto',
+        }}
       >
-        {isLoading ? '읽는 중...' : '📎 자료 첨부'}
-      </button>
+        {isLoading ? '읽는 중...' : isDragging ? '놓으세요' : '📎 자료 첨부'}
+      </div>
       <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleFile} />
     </>
   )
@@ -94,18 +112,35 @@ function KnowledgeInput({
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const processFile = async (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      alert('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.')
+      return
+    }
     setIsLoading(true)
     try {
       const text = await extractTextFromFile(file)
       onChange(value ? `${value}\n\n${text}` : text)
     } finally {
       setIsLoading(false)
-      e.target.value = ''
     }
+  }
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await processFile(file)
+    e.target.value = ''
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) await processFile(file)
   }
 
   return (
@@ -129,14 +164,30 @@ function KnowledgeInput({
           onChange={handleFile}
         />
       </div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={'논거로 쓸 지식, 데이터, 지침을 입력하거나\n파일을 첨부하세요 (PDF, DOCX, TXT)'}
-        className="w-full h-28 px-3 py-2 rounded-lg border text-xs resize-y outline-none focus:border-indigo-500 transition-colors"
-        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)', minHeight: 80 }}
-        maxLength={2000}
-      />
+      <div
+        className="relative rounded-lg border transition-colors"
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        style={{
+          borderColor: isDragging ? color : 'var(--border)',
+          backgroundColor: isDragging ? `${color}08` : 'transparent',
+        }}
+      >
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={'논거로 쓸 지식, 데이터, 지침을 입력하거나\n파일을 드래그하거나 위 버튼으로 첨부하세요 (PDF, DOCX, TXT)'}
+          className="w-full h-28 px-3 py-2 rounded-lg text-xs resize-y outline-none focus:border-indigo-500 transition-colors bg-transparent"
+          style={{ color: 'var(--text-primary)', minHeight: 80 }}
+          maxLength={2000}
+        />
+        {isDragging && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg pointer-events-none">
+            <span className="text-xs font-bold" style={{ color }}>파일을 놓으세요</span>
+          </div>
+        )}
+      </div>
       <p className="text-[10px] text-right mt-0.5" style={{ color: value.length > 1800 ? 'var(--gold)' : 'var(--text-muted)' }}>
         {value.length}/2000
       </p>
@@ -273,6 +324,7 @@ export default function NewDebatePage() {
   const [selectedModel, setSelectedModel] = useState<DebateModel>('claude-sonnet-4-6')
 
   const [resumeDebate, setResumeDebate] = useState<{ id: string; topic: string } | null>(null)
+  const [topicDragging, setTopicDragging] = useState(false)
 
   useEffect(() => {
     fetch('/api/debate/resume-check')
@@ -397,21 +449,41 @@ export default function NewDebatePage() {
       <div className="space-y-5">
         {/* 의제 입력 */}
         <div>
-          <textarea
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder={t(
-              '예: "AI가 인간의 일자리를 대체하는 것은 사회 발전이다"\n"주 4일제 근무는 생산성을 높인다"\n"SNS는 민주주의에 해롭다"',
-              'e.g. "AI replacing human jobs is social progress"\n"A 4-day work week improves productivity"\n"Social media is harmful to democracy"'
-            )}
-            className="w-full h-32 p-4 rounded-xl border text-sm resize-y outline-none focus:border-indigo-500 transition-colors"
-            style={{
-              backgroundColor: 'var(--bg-card)',
-              borderColor: 'var(--border)',
-              color: 'var(--text-primary)',
-              minHeight: 96,
+          <div
+            className="relative rounded-xl border transition-colors"
+            onDragOver={(e) => { e.preventDefault(); setTopicDragging(true) }}
+            onDragLeave={() => setTopicDragging(false)}
+            onDrop={async (e) => {
+              e.preventDefault()
+              setTopicDragging(false)
+              const file = e.dataTransfer.files?.[0]
+              if (!file) return
+              const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+              if (!ALLOWED_EXTENSIONS.includes(ext)) { alert('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.'); return }
+              const text = await extractTextFromFile(file)
+              setTopic((prev) => prev ? `${prev}\n\n${text}` : text)
             }}
-          />
+            style={{
+              borderColor: topicDragging ? 'var(--accent)' : 'var(--border)',
+              backgroundColor: topicDragging ? 'rgba(99,102,241,0.05)' : 'var(--bg-card)',
+            }}
+          >
+            <textarea
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder={t(
+                '예: "AI가 인간의 일자리를 대체하는 것은 사회 발전이다"\n"주 4일제 근무는 생산성을 높인다"\n"SNS는 민주주의에 해롭다"\n\n자료 파일(PDF, DOCX, TXT)을 여기에 드래그해도 됩니다',
+                'e.g. "AI replacing human jobs is social progress"\n"A 4-day work week improves productivity"\n"Social media is harmful to democracy"\n\nYou can also drag & drop a file (PDF, DOCX, TXT) here'
+              )}
+              className="w-full h-32 p-4 rounded-xl text-sm resize-y outline-none transition-colors bg-transparent"
+              style={{ color: 'var(--text-primary)', minHeight: 96 }}
+            />
+            {topicDragging && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl pointer-events-none">
+                <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>파일을 놓으세요 📄</span>
+              </div>
+            )}
+          </div>
           <div className="flex justify-between items-start mt-1 gap-2">
             {error && <p className="text-xs text-red-500 flex-1">{error}</p>}
             <div className="ml-auto shrink-0 flex items-center gap-2">

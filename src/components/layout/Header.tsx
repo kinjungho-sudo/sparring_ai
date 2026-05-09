@@ -60,23 +60,28 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* 언어 토글 */}
-        <button
-          onClick={() => setLanguage(language === 'ko' ? 'en' : 'ko')}
-          className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
-          style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
+        {/* 언어 선택 */}
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as 'ko' | 'en')}
+          className="text-xs font-bold px-2 py-1.5 rounded-lg border transition-colors cursor-pointer outline-none"
+          style={{
+            color: 'var(--text-secondary)',
+            borderColor: 'var(--border)',
+            backgroundColor: 'var(--bg-primary)',
+          }}
         >
-          {language === 'ko' ? 'EN' : 'KO'}
-        </button>
+          <option value="ko">한국어</option>
+          <option value="en">English</option>
+        </select>
 
         {/* 다크/라이트 모드 토글 */}
         <button
           onClick={toggleTheme}
-          className="text-xs px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
+          className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
           style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
-          title={isDark ? '라이트 모드' : '다크 모드'}
         >
-          {isDark ? '☀️' : '🌙'}
+          {isDark ? 'Light' : 'Dark'}
         </button>
 
         {user ? (

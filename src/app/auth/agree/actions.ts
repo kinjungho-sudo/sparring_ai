@@ -2,7 +2,13 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
-export async function saveProfileAndConsent() {
+export async function saveProfileAndConsent({
+  displayName,
+  marketingAgreed,
+}: {
+  displayName: string
+  marketingAgreed: boolean
+}) {
   console.log('[agree/actions] saveProfileAndConsent 시작')
 
   const supabase = await createClient()
@@ -18,7 +24,7 @@ export async function saveProfileAndConsent() {
   const { error: profileError } = await service.from('sparring_profiles').upsert({
     id: user.id,
     email: user.email ?? null,
-    full_name: meta.full_name ?? meta.name ?? null,
+    full_name: displayName,
     avatar_url: meta.avatar_url ?? meta.picture ?? null,
     provider: user.app_metadata?.provider ?? 'google',
   }, { onConflict: 'id' })
@@ -28,7 +34,7 @@ export async function saveProfileAndConsent() {
     user_id: user.id,
     terms_agreed: true,
     privacy_agreed: true,
-    marketing_agreed: false,
+    marketing_agreed: marketingAgreed,
     terms_version: 'v1.0',
     privacy_version: 'v1.0',
     agreed_at: new Date().toISOString(),

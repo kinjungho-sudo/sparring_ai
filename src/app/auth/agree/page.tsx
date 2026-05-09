@@ -9,12 +9,24 @@ function AgreeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') ?? '/debate/new'
-  const [expanded, setExpanded] = useState<'terms' | 'privacy' | null>(null)
+
+  const [displayName, setDisplayName] = useState('')
+  const [termsAgreed, setTermsAgreed] = useState(false)
+  const [privacyAgreed, setPrivacyAgreed] = useState(false)
+  const [emailMarketing, setEmailMarketing] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [nameError, setNameError] = useState('')
+
+  const canSubmit = displayName.trim().length >= 2 && termsAgreed && privacyAgreed
 
   const handleAgree = async () => {
+    if (displayName.trim().length < 2) {
+      setNameError('이름을 2자 이상 입력해주세요.')
+      return
+    }
+    setNameError('')
     setLoading(true)
-    await saveProfileAndConsent()
+    await saveProfileAndConsent({ displayName: displayName.trim(), marketingAgreed: emailMarketing })
     router.replace(next)
   }
 
@@ -40,81 +52,114 @@ function AgreeContent() {
                 스파링 AI에 오신 걸 환영합니다!
               </h1>
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                서비스 이용 전 아래 내용을 확인해주세요.
+                간단한 정보를 입력하고 시작하세요.
               </p>
             </div>
           </div>
         </div>
 
-        {/* 약관 목록 */}
-        <div className="px-6 py-4 space-y-2 max-h-72 overflow-y-auto">
+        <div className="px-6 py-5 space-y-5">
 
-          {/* 이용약관 */}
-          <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-            <button
-              onClick={() => setExpanded(expanded === 'terms' ? null : 'terms')}
-              className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/5"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">📄</span>
-                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>이용약관</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>필수</span>
-              </div>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{expanded === 'terms' ? '▲' : '▼'}</span>
-            </button>
-            {expanded === 'terms' && (
-              <div className="px-4 pb-4 text-xs leading-relaxed space-y-2" style={{ color: 'var(--text-secondary)', borderTop: '1px solid var(--border)' }}>
-                <p className="pt-3">스파링 AI는 의사결정 보조 목적의 AI 토론 서비스입니다.</p>
-                <ul className="space-y-1 list-disc list-inside">
-                  <li>생성된 토론 내용은 참고용이며 법적·의료·재정적 조언이 아닙니다.</li>
-                  <li>서비스 악용 및 불법 콘텐츠 생성은 금지됩니다.</li>
-                  <li>서비스는 사전 예고 없이 변경될 수 있습니다.</li>
-                </ul>
-                <Link href="/terms" className="inline-block text-indigo-400 underline underline-offset-2 mt-1">전문 보기 →</Link>
-              </div>
-            )}
+          {/* 사용자 이름 */}
+          <div>
+            <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+              이름 <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => { setDisplayName(e.target.value); setNameError('') }}
+              placeholder="닉네임 또는 실명"
+              maxLength={30}
+              className="w-full h-10 px-3 rounded-lg border text-sm outline-none transition-colors"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: nameError ? '#ef4444' : 'var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            {nameError && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{nameError}</p>}
           </div>
 
-          {/* 개인정보처리방침 */}
-          <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-            <button
-              onClick={() => setExpanded(expanded === 'privacy' ? null : 'privacy')}
-              className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/5"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">🔒</span>
-                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>개인정보처리방침</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>필수</span>
-              </div>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{expanded === 'privacy' ? '▲' : '▼'}</span>
-            </button>
-            {expanded === 'privacy' && (
-              <div className="px-4 pb-4 text-xs leading-relaxed space-y-2" style={{ color: 'var(--text-secondary)', borderTop: '1px solid var(--border)' }}>
-                <p className="pt-3">서비스 이용 시 다음 정보가 수집됩니다:</p>
-                <ul className="space-y-1 list-disc list-inside">
-                  <li>Google 계정 이메일 (인증 목적)</li>
-                  <li>토론 의제 및 진행 내용 (서비스 제공 목적)</li>
-                </ul>
-                <p>수집된 정보는 서비스 개선 목적으로만 활용되며, 제3자에게 제공되지 않습니다.</p>
-                <Link href="/privacy" className="inline-block text-indigo-400 underline underline-offset-2 mt-1">전문 보기 →</Link>
-              </div>
-            )}
+          {/* 약관 동의 */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>약관 동의</p>
+
+            {/* 이용약관 */}
+            <label className="flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors hover:bg-white/5"
+              style={{ borderColor: termsAgreed ? 'rgba(99,102,241,0.4)' : 'var(--border)' }}>
+              <input
+                type="checkbox"
+                checked={termsAgreed}
+                onChange={(e) => setTermsAgreed(e.target.checked)}
+                className="w-4 h-4 accent-indigo-500 shrink-0"
+              />
+              <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                이용약관 동의
+                <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>필수</span>
+              </span>
+              <Link
+                href="/terms"
+                target="_blank"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[11px] underline underline-offset-2 shrink-0 transition-opacity hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
+              >
+                보기
+              </Link>
+            </label>
+
+            {/* 개인정보처리방침 */}
+            <label className="flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors hover:bg-white/5"
+              style={{ borderColor: privacyAgreed ? 'rgba(99,102,241,0.4)' : 'var(--border)' }}>
+              <input
+                type="checkbox"
+                checked={privacyAgreed}
+                onChange={(e) => setPrivacyAgreed(e.target.checked)}
+                className="w-4 h-4 accent-indigo-500 shrink-0"
+              />
+              <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                개인정보처리방침 동의
+                <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>필수</span>
+              </span>
+              <Link
+                href="/privacy"
+                target="_blank"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[11px] underline underline-offset-2 shrink-0 transition-opacity hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
+              >
+                보기
+              </Link>
+            </label>
+
+            {/* 이메일 알림 (선택) */}
+            <label className="flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors hover:bg-white/5"
+              style={{ borderColor: emailMarketing ? 'rgba(99,102,241,0.4)' : 'var(--border)' }}>
+              <input
+                type="checkbox"
+                checked={emailMarketing}
+                onChange={(e) => setEmailMarketing(e.target.checked)}
+                className="w-4 h-4 accent-indigo-500 shrink-0"
+              />
+              <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                이메일 알림 수신
+                <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>선택</span>
+              </span>
+            </label>
           </div>
         </div>
 
         {/* CTA */}
-        <div className="px-6 pb-6 pt-2">
+        <div className="px-6 pb-6 pt-1">
           <button
             onClick={handleAgree}
-            disabled={loading}
-            className="w-full h-12 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 mb-2"
+            disabled={!canSubmit || loading}
+            className="w-full h-12 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed mb-2"
             style={{ backgroundColor: 'var(--accent)' }}
           >
-            {loading ? '저장 중...' : '모두 동의하고 시작하기'}
+            {loading ? '저장 중...' : '시작하기'}
           </button>
-          <p className="text-[11px] text-center mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            위 이용약관 및 개인정보처리방침(필수)에 모두 동의합니다.
-          </p>
           <button
             onClick={handleDecline}
             disabled={loading}

@@ -2,10 +2,24 @@
 
 import LoginButton from '@/components/auth/LoginButton'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
-export default function LoginPage() {
+function LoginContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [alreadyMember, setAlreadyMember] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('already_member') === '1') {
+      setAlreadyMember(true)
+      setMode('login')
+      const next = searchParams.get('next') ?? '/debate/new'
+      const timer = setTimeout(() => router.replace(next), 2500)
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams, router])
 
   return (
     <div className="flex min-h-[calc(100vh-64px)]">
@@ -61,6 +75,13 @@ export default function LoginPage() {
             <p className="text-2xl font-black mb-2" style={{ color: 'var(--text-primary)' }}>⚡ Sparring AI</p>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>AI 토론으로 더 나은 결정을</p>
           </div>
+
+          {/* 이미 회원 배너 */}
+          {alreadyMember && (
+            <div className="mb-6 px-4 py-3 rounded-xl border text-sm" style={{ backgroundColor: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.3)', color: 'var(--accent)' }}>
+              ✓ 이미 가입된 계정입니다. 잠시 후 자동으로 이동합니다...
+            </div>
+          )}
 
           {/* 탭 */}
           <div
@@ -143,5 +164,13 @@ export default function LoginPage() {
       </div>
 
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   )
 }

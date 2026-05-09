@@ -5,7 +5,8 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/debate/new'
-  console.log('[callback] 진입 — code 존재:', !!code, '/ next:', next)
+  const mode = searchParams.get('mode') ?? 'login'
+  console.log('[callback] 진입 — code 존재:', !!code, '/ next:', next, '/ mode:', mode)
 
   if (code) {
     const supabase = await createClient()
@@ -46,8 +47,15 @@ export async function GET(request: Request) {
       console.log('[callback] sparring_profiles upsert:', upsertError ?? 'OK')
 
       if (!existingProfile) {
+        // 신규 사용자 — 로그인 탭으로 왔어도 약관 동의 필요
         console.log('[callback] 신규 사용자 → /auth/agree 리다이렉트')
         return NextResponse.redirect(`${origin}/auth/agree?next=${encodeURIComponent(next)}`)
+      }
+
+      // 기존 사용자 — 회원가입 탭으로 왔다면 "이미 회원" 안내
+      if (mode === 'signup') {
+        console.log('[callback] 기존 사용자 + signup 모드 → already_member 안내')
+        return NextResponse.redirect(`${origin}/login?already_member=1&next=${encodeURIComponent(next)}`)
       }
       console.log('[callback] 기존 사용자 → 리다이렉트:', next)
       return NextResponse.redirect(`${origin}${next}`)
