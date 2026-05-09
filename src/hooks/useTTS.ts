@@ -173,17 +173,65 @@ export function useTTS() {
       }
 
       openaiAvailableRef.current = true
-      const blob = await resp.blob()
-      const url = URL.createObjectURL(blob)
 
-      // blob 받는 중 stop()이 불렸으면 버림
+      // fetch 중 stop()이 불렸으면 버림
       if (generationRef.current !== myGeneration) {
-        URL.revokeObjectURL(url)
         setIsSpeaking(false)
         setTtsSpeaker(null)
         return
       }
 
+      // 스트리밍: 전체 다운로드 없이 즉시 재생
+      const mediaSource = (typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('audio/mpeg'))
+        ? new MediaSource()
+        : null
+
+      if (mediaSource && resp.body) {
+        const url = URL.createObjectURL(mediaSource)
+        return new Promise<void>((resolve) => {
+          const audio = new Audio(url)
+          audio.playbackRate = speedRef.current
+          audio.volume = isMutedRef.current ? 0 : volumeRef.current
+          audioRef.current = audio
+          let settled = false
+          const done = () => {
+            if (settled) return
+            settled = true
+            if (generationRef.current === myGeneration) {
+              setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null)
+              isPausedRef.current = false; audioRef.current = null; pauseResolveRef.current = null
+            }
+            URL.revokeObjectURL(url)
+            resolve()
+          }
+          mediaSource.addEventListener('sourceopen', () => {
+            const sb = mediaSource.addSourceBuffer('audio/mpeg')
+            const reader = resp.body!.getReader()
+            const pump = async () => {
+              try {
+                while (true) {
+                  const { done: streamDone, value } = await reader.read()
+                  if (generationRef.current !== myGeneration) { reader.cancel(); mediaSource.endOfStream(); done(); return }
+                  if (streamDone) { mediaSource.endOfStream(); break }
+                  await new Promise<void>((r) => {
+                    if (!sb.updating) { sb.appendBuffer(value); sb.addEventListener('updateend', () => r(), { once: true }) }
+                    else { sb.addEventListener('updateend', () => { sb.appendBuffer(value); sb.addEventListener('updateend', () => r(), { once: true }) }, { once: true }) }
+                  })
+                }
+              } catch { mediaSource.endOfStream() }
+            }
+            pump()
+          })
+          audio.onended = done
+          audio.onerror = done
+          audio.play().catch(done)
+        })
+      }
+
+      // MediaSource 미지원 폴백 — blob 전체 수신
+      const blob = await resp.blob()
+      const url = URL.createObjectURL(blob)
+      if (generationRef.current !== myGeneration) { URL.revokeObjectURL(url); setIsSpeaking(false); setTtsSpeaker(null); return }
       return new Promise<void>((resolve) => {
         const audio = new Audio(url)
         audio.playbackRate = speedRef.current
@@ -193,14 +241,9 @@ export function useTTS() {
         const done = () => {
           if (settled) return
           settled = true
-          // 세대가 바뀌었으면 (stop() 호출됨) 상태 건드리지 않음 — stop()이 이미 리셋함
           if (generationRef.current === myGeneration) {
-            setIsSpeaking(false)
-            setIsPaused(false)
-            setTtsSpeaker(null)
-            isPausedRef.current = false
-            audioRef.current = null
-            pauseResolveRef.current = null
+            setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null)
+            isPausedRef.current = false; audioRef.current = null; pauseResolveRef.current = null
           }
           URL.revokeObjectURL(url)
           resolve()

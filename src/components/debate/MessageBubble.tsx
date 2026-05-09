@@ -35,9 +35,8 @@ interface MessageBubbleProps {
 }
 
 const VERDICT_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  TRUE:      { label: '✓ TRUE',      color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
-  FALSE:     { label: '✗ FALSE',     color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
-  MISLEADING:{ label: '△ MISLEADING',color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
+  TRUE:  { label: '✓ TRUE',  color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
+  FALSE: { label: '✗ FALSE', color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
 }
 
 export default function MessageBubble({
@@ -60,8 +59,10 @@ export default function MessageBubble({
   const [showFactNote, setShowFactNote] = useState(false)
 
   if (isHost) {
-    // 팩트체크 버블
-    if (factChecks && factChecks.length > 0) {
+    // 팩트체크 버블 — MISLEADING 제외, TRUE/FALSE만 표시
+    const significantChecks = (factChecks ?? []).filter((fc) => VERDICT_STYLE[fc.verdict])
+    if (significantChecks.length > 0) {
+      factChecks = significantChecks
       return (
         <div className="flex justify-center my-3 animate-fade-slide-in" style={{ animationDelay: `${delay}ms` }}>
           <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-xl border overflow-hidden"
@@ -72,8 +73,8 @@ export default function MessageBubble({
               <span className="text-[10px] font-semibold opacity-60" style={{ color: '#f59e0b' }}>Round {roundNumber}</span>
             </div>
             <div className="divide-y" style={{ borderColor: 'rgba(245,158,11,0.12)' }}>
-              {factChecks.map((fc, i) => {
-                const vs = VERDICT_STYLE[fc.verdict] ?? VERDICT_STYLE.MISLEADING
+              {factChecks.filter((fc) => VERDICT_STYLE[fc.verdict]).map((fc, i) => {
+                const vs = VERDICT_STYLE[fc.verdict]
                 const speakerLabel = fc.speaker === 'red' ? '🔴 RED' : '🔵 BLUE'
                 return (
                   <div key={i} className="px-4 py-3" style={{ backgroundColor: vs.bg }}>
@@ -148,20 +149,23 @@ export default function MessageBubble({
 
         {/* 버블 */}
         <div
-          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed relative whitespace-pre-wrap ${isStreaming ? 'streaming-cursor' : ''}`}
-          style={{
-            backgroundColor: isRed ? 'var(--red-dim)' : 'var(--blue-dim)',
+          className={`rounded-2xl ${isStreaming ? (isRed ? 'streaming-border-red' : 'streaming-border-blue') : ''}`}
+          style={!isStreaming ? {
             border: isSpeakingThis
               ? `1.5px solid ${isRed ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.6)'}`
               : `1.5px solid ${isRed ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)'}`,
-            color: 'var(--text-primary)',
             boxShadow: isSpeakingThis
               ? `0 0 0 2px ${isRed ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)'}`
               : undefined,
             transition: 'border-color 0.2s, box-shadow 0.2s',
-          }}
+          } : undefined}
         >
-          {isStreaming ? content : cleanForDisplay(content)}
+          <div
+            className={`px-4 py-3 rounded-2xl text-sm leading-relaxed relative whitespace-pre-wrap ${isStreaming ? 'streaming-cursor' : ''}`}
+            style={{ backgroundColor: isRed ? 'var(--red-dim)' : 'var(--blue-dim)', color: 'var(--text-primary)' }}
+          >
+            {isStreaming ? content : cleanForDisplay(content)}
+          </div>
         </div>
 
         {/* 하단 액션 바 */}

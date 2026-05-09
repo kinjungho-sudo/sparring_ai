@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'tts-1-hd',
+      model: 'tts-1',
       input: text,
       voice: ttsVoice,
       response_format: 'mp3',
@@ -33,11 +33,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'TTS API error' }, { status: 502 })
   }
 
-  const audioBuffer = await resp.arrayBuffer()
-  return new Response(audioBuffer, {
+  return new Response(resp.body, {
     headers: {
       'Content-Type': 'audio/mpeg',
       'Cache-Control': 'no-store',
+      'Transfer-Encoding': 'chunked',
     },
   })
 }
