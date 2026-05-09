@@ -50,6 +50,10 @@ export function cleanForTTS(text: string): string {
     .replace(/^\s*\d+\.\s+/gm, '')
     .replace(/>{1,}\s*/g, '')
     .replace(/\n{3,}/g, '\n\n')
+    // 영문 발음 교정
+    .replace(/\bRED\b/g, '레드')
+    .replace(/\bBLUE\b/g, '블루')
+    .replace(/\bAI\b/g, '에이아이')
     .trim()
 }
 

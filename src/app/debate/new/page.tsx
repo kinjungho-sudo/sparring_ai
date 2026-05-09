@@ -207,7 +207,7 @@ function DebaterCustomPanel({
   side: 'red' | 'blue'
   color: string
   label: string
-  config: { persona?: string; tone?: DebaterTone; knowledge?: string; voice?: TTSVoice }
+  config: { persona?: string; tone?: DebaterTone; knowledge?: string; voice?: TTSVoice; model?: DebateModel }
   onChange: (c: typeof config) => void
 }) {
   const toneKey = config.tone ?? 'default'
@@ -218,6 +218,28 @@ function DebaterCustomPanel({
       <p className="text-xs font-black uppercase tracking-widest shrink-0" style={{ color }}>
         {side === 'red' ? '🔴' : '🔵'} {label}
       </p>
+
+      {/* AI 모델 */}
+      <div>
+        <label className="text-xs font-semibold block mb-1.5" style={{ color: 'var(--text-muted)' }}>AI 모델</label>
+        <div className="grid grid-cols-1 gap-1">
+          {MODEL_OPTIONS.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => onChange({ ...config, model: m.value })}
+              className="flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all"
+              style={{
+                backgroundColor: (config.model ?? 'claude-sonnet-4-6') === m.value ? `${color}20` : 'var(--bg-card)',
+                borderColor: (config.model ?? 'claude-sonnet-4-6') === m.value ? color : 'var(--border)',
+              }}
+            >
+              <span className="text-xs font-semibold" style={{ color: (config.model ?? 'claude-sonnet-4-6') === m.value ? color : 'var(--text-primary)' }}>{m.label}</span>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{m.badge}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* 페르소나 */}
       <div>
@@ -320,8 +342,10 @@ export default function NewDebatePage() {
   const [validationResult, setValidationResult] = useState<ValidateResult | null>(null)
   const [error, setError] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [debateConfig, setDebateConfig] = useState<DebateConfig>({})
-  const [selectedModel, setSelectedModel] = useState<DebateModel>('claude-sonnet-4-6')
+  const [debateConfig, setDebateConfig] = useState<DebateConfig>({
+    red: { model: 'claude-sonnet-4-6' },
+    blue: { model: 'claude-sonnet-4-6' },
+  })
 
   const [resumeDebate, setResumeDebate] = useState<{ id: string; topic: string } | null>(null)
   const [topicDragging, setTopicDragging] = useState(false)
@@ -379,9 +403,11 @@ export default function NewDebatePage() {
           disclaimer_agreed: disclaimerAgreed,
           language,
           is_sample: false,
-          debate_config: (debateConfig.red || debateConfig.blue)
-            ? { ...debateConfig, model: selectedModel }
-            : { model: selectedModel },
+          debate_config: {
+            ...debateConfig,
+            red_model: debateConfig.red?.model ?? 'claude-sonnet-4-6',
+            blue_model: debateConfig.blue?.model ?? 'claude-sonnet-4-6',
+          },
         }),
       })
 
@@ -542,44 +568,6 @@ export default function NewDebatePage() {
 
           {showAdvanced && (
             <div className="mt-3 space-y-4">
-
-              {/* AI 모델 선택 */}
-              <div>
-                <label className="text-xs font-black uppercase tracking-widest mb-2.5 block" style={{ color: 'var(--text-muted)' }}>
-                  AI 모델
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {MODEL_OPTIONS.map((m) => (
-                    <button
-                      key={m.value}
-                      type="button"
-                      disabled={!m.available}
-                      onClick={() => m.available && setSelectedModel(m.value)}
-                      className="relative flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all disabled:cursor-not-allowed"
-                      style={{
-                        backgroundColor: selectedModel === m.value ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)',
-                        borderColor: selectedModel === m.value ? 'rgba(99,102,241,0.6)' : 'var(--border)',
-                        opacity: m.available ? 1 : 0.5,
-                      }}
-                    >
-                      <span className="text-xs font-bold" style={{ color: selectedModel === m.value ? 'var(--accent)' : 'var(--text-primary)' }}>
-                        {m.label}
-                      </span>
-                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{m.badge}</span>
-                      {!m.available && (
-                        <span className="absolute top-1.5 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(99,102,241,0.15)', color: 'var(--text-muted)' }}>
-                          준비 중
-                        </span>
-                      )}
-                      {m.available && selectedModel === m.value && (
-                        <span className="absolute top-1.5 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(99,102,241,0.2)', color: 'var(--accent)' }}>
-                          선택됨
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* RED / BLUE 좌우 패널 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

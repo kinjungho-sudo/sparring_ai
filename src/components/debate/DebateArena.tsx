@@ -138,7 +138,7 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
 export default function DebateArena({ debate, initialReport, initialMessages }: DebateArenaProps) {
   const { language, t } = useLanguage()
   const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
-  const { speakMsg, enqueueMsg, stop, isSupported, speakingMsgId, ttsEnabled, setTtsEnabled, speed, setSpeed } = useTTS()
+  const { speakMsg, enqueueMsg, stop, isSupported, speakingMsgId, ttsEnabled, setTtsEnabled, speed, setSpeed, volume, setVolume } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
@@ -293,20 +293,34 @@ export default function DebateArena({ debate, initialReport, initialMessages }: 
               {ttsEnabled ? '🔊' : '🔇'}
             </button>
             {ttsEnabled && (
-              <select
-                value={speed}
-                onChange={(e) => setSpeed(Number(e.target.value) as typeof speed)}
-                className="text-[11px] font-bold px-1.5 py-1.5 rounded-lg border cursor-pointer outline-none"
-                style={{
-                  borderColor: 'rgba(99,102,241,0.3)',
-                  color: 'var(--accent)',
-                  backgroundColor: 'rgba(99,102,241,0.08)',
-                }}
-              >
-                {TTS_SPEEDS.map((s) => (
-                  <option key={s} value={s}>{s}×</option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={speed}
+                  onChange={(e) => setSpeed(Number(e.target.value) as typeof speed)}
+                  className="text-[11px] font-bold px-1.5 py-1.5 rounded-lg border cursor-pointer outline-none"
+                  style={{ borderColor: 'rgba(99,102,241,0.3)', color: 'var(--accent)', backgroundColor: 'rgba(99,102,241,0.08)' }}
+                  title="재생 속도"
+                >
+                  {TTS_SPEEDS.map((s) => (
+                    <option key={s} value={s}>{s}×</option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-1" title="볼륨">
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={volume}
+                    onChange={(e) => setVolume(Number(e.target.value))}
+                    className="w-16 accent-indigo-500"
+                    style={{ height: 4 }}
+                  />
+                </div>
+              </>
             )}
           </div>
         )}

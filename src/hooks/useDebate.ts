@@ -125,7 +125,14 @@ export function useDebate(): UseDebateReturn {
     setMessages((prev) => {
       const next = prev.map((m) => {
         if (m.roundNumber !== roundNumber) return m
-        const err = errors.find((e) => e.speaker === m.speaker && m.content.includes(e.claim.trim().replace(/^["']|["']$/g, '').slice(0, 40)))
+        const err = errors.find((e) => {
+          if (e.speaker !== m.speaker) return false
+          // 클레임에서 핵심 단어(4자 이상) 추출해 발언에 하나라도 포함되면 매칭
+          const words = e.claim.trim().replace(/^["']|["']$/g, '').split(/\s+/).filter((w) => w.length >= 4)
+          if (words.length === 0) return m.content.includes(e.claim.trim().slice(0, 20))
+          const matched = words.filter((w) => m.content.includes(w))
+          return matched.length >= Math.ceil(words.length * 0.4)
+        })
         if (!err) return m
         return { ...m, hasFactError: true, factErrorNote: err.note }
       })
@@ -263,6 +270,8 @@ export function useDebate(): UseDebateReturn {
 
     const history = messagesRef.current.map((m) => ({ speaker: m.speaker, content: m.content }))
 
+    const cfg = debate.debate_config
+    const sharedModel = cfg?.model ?? 'claude-sonnet-4-6'
     const baseBody = {
       debate_id: debate.id,
       topic: debate.topic,
@@ -270,9 +279,11 @@ export function useDebate(): UseDebateReturn {
       totalRounds: effectiveTotalRounds,
       language,
       history,
-      red_config: debate.debate_config?.red,
-      blue_config: debate.debate_config?.blue,
-      model: debate.debate_config?.model,
+      red_config: cfg?.red,
+      blue_config: cfg?.blue,
+      model: sharedModel,
+      red_model: cfg?.red_model ?? sharedModel,
+      blue_model: cfg?.blue_model ?? sharedModel,
     }
 
     try {
@@ -292,13 +303,14 @@ export function useDebate(): UseDebateReturn {
 
       const redId = `red-${round}`
       addStreamingMessage(redId, 'red', round, isFinalRound)
-      const { tokenCount: redTokens } = await streamAI('/api/debate/red', baseBody, (text) => updateStreamingMessage(redId, text))
+      const { tokenCount: redTokens } = await streamAI('/api/debate/red', { ...baseBody, model: baseBody.red_model }, (text) => updateStreamingMessage(redId, text))
       finalizeMessage(redId, redTokens)
 
       const blueId = `blue-${round}`
       addStreamingMessage(blueId, 'blue', round, isFinalRound)
       const { tokenCount: blueTokens } = await streamAI('/api/debate/blue', {
         ...baseBody,
+        model: baseBody.blue_model,
         history: [...history, { speaker: 'red', content: messagesRef.current.find((m) => m.id === redId)?.content ?? '' }],
       }, (text) => updateStreamingMessage(blueId, text))
       finalizeMessage(blueId, blueTokens)

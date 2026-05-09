@@ -152,9 +152,7 @@ BLUE(반대): ${blueContent}
       "speaker": "red" | "blue",
       "claim": "원문에서 검증 대상 주장 발췌 (짧게)",
       "verdict": "TRUE" | "FALSE" | "MISLEADING",
-      "note": "판정 근거 1~2문장",
-      "source_label": "출처명 (예: 통계청, OECD, Wikipedia 등)",
-      "source_url": "검색 가능한 실제 URL (공식 사이트, 위키피디아 등 — 존재하지 않는 URL 절대 금지)"
+      "note": "판정 근거 1~2문장 (출처기관명 포함 가능, URL은 절대 생성 금지)"
     }
   ]
 }`

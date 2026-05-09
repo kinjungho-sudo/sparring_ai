@@ -95,12 +95,15 @@ export interface DebaterConfig {
   tone?: DebaterTone
   knowledge?: string
   voice?: TTSVoice
+  model?: DebateModel
 }
 
 export interface DebateConfig {
   red?: DebaterConfig
   blue?: DebaterConfig
   model?: DebateModel
+  red_model?: DebateModel
+  blue_model?: DebateModel
 }
 
 export interface DebateState {

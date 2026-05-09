@@ -84,18 +84,6 @@ export default function MessageBubble({
                     </div>
                     <p className="text-[11px] mb-1 italic opacity-70" style={{ color: 'var(--text-muted)' }}>&ldquo;{fc.claim}&rdquo;</p>
                     <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{fc.note}</p>
-                    {fc.source_url && (
-                      <a
-                        href={fc.source_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-semibold underline underline-offset-2 opacity-70 hover:opacity-100 transition-opacity"
-                        style={{ color: '#f59e0b' }}
-                      >
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        {fc.source_label ?? '출처 확인'}
-                      </a>
-                    )}
                   </div>
                 )
               })}
