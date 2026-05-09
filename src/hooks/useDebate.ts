@@ -1,7 +1,16 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import type { Debate, Language, ReportData } from '@/types'
+import type { Debate, Language, Message, ReportData } from '@/types'
+
+export interface FactCheck {
+  speaker: string
+  claim: string
+  verdict: string
+  note: string
+  source_label?: string | null
+  source_url?: string | null
+}
 
 interface LocalMessage {
   id: string
@@ -14,9 +23,8 @@ interface LocalMessage {
   factErrorNote: string | null
   tokenCount: number | null
   isStreaming?: boolean
+  factChecks?: FactCheck[]
 }
-
-type SpeakFn = (text: string, speaker: 'red' | 'blue') => Promise<void>
 
 interface UseDebateReturn {
   messages: LocalMessage[]
@@ -27,9 +35,8 @@ interface UseDebateReturn {
   roundErrorCount: number
   reportContent: ReportData | null
   debateId: string | null
-  setSpeakFn: (fn: SpeakFn | null) => void
-  runRound: (debate: Debate, language: Language, overrideTotalRounds?: number, autoMode?: boolean) => Promise<void>
-  initDebate: (debate: Debate) => void
+  runRound: (debate: Debate, language: Language, overrideTotalRounds?: number) => Promise<void>
+  initDebate: (debate: Debate, preloadedMessages?: Message[]) => void
   adjustTotalRounds: (n: number) => void
   resetRoundError: () => void
   sendHostIntervention: (debate: Debate, language: Language, message: string, target?: 'both' | 'red' | 'blue') => void
@@ -92,7 +99,6 @@ export function useDebate(): UseDebateReturn {
   const roundErrorCountRef = useRef(0)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const runRoundRef = useRef<any>(null)
-  const speakFnRef = useRef<SpeakFn | null>(null)
 
   const addStreamingMessage = useCallback((id: string, speaker: 'red' | 'blue' | 'host', roundNumber: number, isFinalRound: boolean) => {
     const msg: LocalMessage = { id, speaker, content: '', roundNumber, isFinalRound, hasFactError: false, factErrorNote: null, tokenCount: null, isStreaming: true }
@@ -158,18 +164,40 @@ export function useDebate(): UseDebateReturn {
     return null
   }, [])
 
-  const initDebate = useCallback((debate: Debate) => {
+  const initDebate = useCallback((debate: Debate, preloadedMessages?: Message[]) => {
     setDebateId(debate.id)
-    setMessages([])
-    messagesRef.current = []
-    setCurrentRound(1)
-    currentRoundRef.current = 1
+
+    const loaded: LocalMessage[] = (preloadedMessages ?? []).map((m) => ({
+      id: m.id,
+      dbId: m.id,
+      speaker: m.speaker as 'red' | 'blue' | 'host',
+      content: m.content,
+      roundNumber: m.round_number,
+      isFinalRound: m.is_final_round,
+      hasFactError: m.has_fact_error,
+      factErrorNote: m.fact_error_note,
+      tokenCount: m.token_count,
+      isStreaming: false,
+    }))
+
+    setMessages(loaded)
+    messagesRef.current = loaded
+
+    // current round = max round in loaded messages + 1 (or 1 if none)
+    const maxRound = loaded.reduce((max, m) => Math.max(max, m.roundNumber), 0)
+    const isFinished = debate.status === 'completed' || debate.status === 'early_end'
+    const resumeRound = isFinished ? maxRound : maxRound + 1
+    const startRound = Math.max(1, resumeRound)
+
+    setCurrentRound(startRound)
+    currentRoundRef.current = startRound
     setTotalRounds(debate.rounds)
     totalRoundsRef.current = debate.rounds
     isRunningRef.current = false
+    isCompleteRef.current = isFinished
     roundErrorCountRef.current = 0
     setIsRunning(false)
-    setIsComplete(false)
+    setIsComplete(isFinished)
     setRoundErrorCount(0)
     setReportContent(null)
   }, [])
@@ -221,8 +249,11 @@ export function useDebate(): UseDebateReturn {
     }
   }, [])
 
-  const runRound = useCallback(async (debate: Debate, language: Language, overrideTotalRounds?: number, autoMode = false) => {
+  const isCompleteRef = useRef(false)
+
+  const runRound = useCallback(async (debate: Debate, language: Language, overrideTotalRounds?: number) => {
     if (isRunningRef.current) return
+    if (isCompleteRef.current) return
     isRunningRef.current = true
     setIsRunning(true)
 
@@ -241,6 +272,7 @@ export function useDebate(): UseDebateReturn {
       history,
       red_config: debate.debate_config?.red,
       blue_config: debate.debate_config?.blue,
+      model: debate.debate_config?.model,
     }
 
     try {
@@ -263,11 +295,6 @@ export function useDebate(): UseDebateReturn {
       const { tokenCount: redTokens } = await streamAI('/api/debate/red', baseBody, (text) => updateStreamingMessage(redId, text))
       finalizeMessage(redId, redTokens)
 
-      // RED TTS — 완료될 때까지 BLUE 대기 (TTS OFF면 즉시 통과)
-      if (speakFnRef.current) {
-        await speakFnRef.current(messagesRef.current.find((m) => m.id === redId)?.content ?? '', 'red')
-      }
-
       const blueId = `blue-${round}`
       addStreamingMessage(blueId, 'blue', round, isFinalRound)
       const { tokenCount: blueTokens } = await streamAI('/api/debate/blue', {
@@ -276,36 +303,31 @@ export function useDebate(): UseDebateReturn {
       }, (text) => updateStreamingMessage(blueId, text))
       finalizeMessage(blueId, blueTokens)
 
-      // BLUE TTS — 완료될 때까지 다음 라운드 대기 (TTS OFF면 즉시 통과)
-      if (speakFnRef.current) {
-        await speakFnRef.current(messagesRef.current.find((m) => m.id === blueId)?.content ?? '', 'blue')
-      }
-
       const redContent = messagesRef.current.find((m) => m.id === redId)?.content ?? ''
       const blueContent = messagesRef.current.find((m) => m.id === blueId)?.content ?? ''
 
-      // 팩트체크 비동기
+      // 팩트체크 비동기 — 완료 후 사회자 버블로 표시
       const currentDebateId = debate.id
       fetch('/api/debate/factcheck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...baseBody, redContent, blueContent }),
       }).then((r) => r.json()).then((result) => {
-        if (result.errors?.length > 0) {
-          applyFactErrors(result.errors, round)
-          if (currentDebateId) {
-            const msgs = messagesRef.current
-            for (const err of result.errors) {
-              const matched = msgs.find((m) => m.roundNumber === round && m.speaker === err.speaker && m.content.includes(err.claim.trim().replace(/^["']|["']$/g, '').slice(0, 40)))
-              if (matched?.dbId) {
-                fetch('/api/debate/save-message', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: 'update_fact_error', debate_id: currentDebateId, message_id: matched.dbId, fact_error_note: err.note }),
-                }).catch(() => {})
-              }
-            }
+        const checks: FactCheck[] = result.checks ?? []
+        if (checks.length > 0) {
+          // 사회자 팩트체크 버블 삽입
+          const fcId = `host-factcheck-${round}`
+          const fcMsg: LocalMessage = {
+            id: fcId, speaker: 'host',
+            content: language === 'ko' ? `[라운드 ${round} 팩트체크]` : `[Round ${round} Fact Check]`,
+            roundNumber: round, isFinalRound: false,
+            hasFactError: false, factErrorNote: null, tokenCount: null,
+            factChecks: checks,
           }
+          setMessages((prev) => { const next = [...prev, fcMsg]; messagesRef.current = next; return next })
+
+          // 기존 메시지에 팩트 오류 마킹 (버블 내 ⚠️ 표시용)
+          applyFactErrors(checks.map((c) => ({ speaker: c.speaker, claim: c.claim, note: c.note })), round)
         }
       }).catch(() => {})
 
@@ -331,6 +353,7 @@ export function useDebate(): UseDebateReturn {
               topic: debate.topic,
               messages: allMessages.map((m) => ({ speaker: m.speaker, content: m.content, has_fact_error: m.hasFactError, fact_error_note: m.factErrorNote })),
               language,
+              model: debate.debate_config?.model,
             }),
           })
           if (reportResp.ok) {
@@ -368,20 +391,14 @@ export function useDebate(): UseDebateReturn {
               body: JSON.stringify({ action: 'complete', debate_id: debate.id, status: earlyEnd ? 'early_end' : 'completed' }),
             }).catch(() => {})
           }
+          isCompleteRef.current = true
           setIsComplete(true)
         }
       } else {
         const next = round + 1
         setCurrentRound(next)
         currentRoundRef.current = next
-
-        // 자동 모드: 다음 라운드 즉시 호출 (DebateArena useEffect 경유 없이)
-        if (autoMode) {
-          isRunningRef.current = false
-          setIsRunning(false)
-          runRoundRef.current(debate, language, overrideTotalRounds ?? totalRoundsRef.current, true)
-          return
-        }
+        // 라운드 간 자동 이동 없음 — 사용자가 버튼으로 다음 라운드 시작
       }
     } catch {
       roundErrorCountRef.current += 1
@@ -394,9 +411,5 @@ export function useDebate(): UseDebateReturn {
 
   runRoundRef.current = runRound
 
-  const setSpeakFn = useCallback((fn: SpeakFn | null) => {
-    speakFnRef.current = fn
-  }, [])
-
-  return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, debateId, setSpeakFn, runRound, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
+  return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, debateId, runRound, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
 }

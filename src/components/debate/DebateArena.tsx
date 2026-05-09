@@ -6,15 +6,17 @@ import MessageBubble from './MessageBubble'
 import RoundIndicator from './RoundIndicator'
 import DebateReport from './DebateReport'
 import Button from '@/components/ui/Button'
-import type { Debate } from '@/types'
+import type { Debate, Message } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useDebate } from '@/hooks/useDebate'
-import { useTTS, TONE_VOICE_MAP, TTS_SPEEDS } from '@/hooks/useTTS'
+import type { FactCheck } from '@/hooks/useDebate'
+import { useTTS, TONE_VOICE_MAP } from '@/hooks/useTTS'
 import type { TTSVoice } from '@/types'
 
 interface DebateArenaProps {
   debate: Debate
   initialReport?: import('@/types').ReportData | null
+  initialMessages?: Message[]
 }
 
 function SampleEndPrompt({ language }: { language: string }) {
@@ -133,19 +135,17 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
   )
 }
 
-export default function DebateArena({ debate, initialReport }: DebateArenaProps) {
+export default function DebateArena({ debate, initialReport, initialMessages }: DebateArenaProps) {
   const { language, t } = useLanguage()
-  const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention, setSpeakFn } = useDebate()
-  const { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled, isSupported, speed, setSpeed, volume, setVolume, isMuted, toggleMute } = useTTS()
+  const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
+  const { speakMsg, enqueueMsg, stop, isSupported, speakingMsgId, ttsEnabled, setTtsEnabled } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
   const [showReport, setShowReport] = useState(() => !!initialReport)
-  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null)
 
-  // 자동 진행 모드 (기본값 true)
-  const [autoMode, setAutoMode] = useState(true)
-  const autoModeRef = useRef(true)
+  // TTS: 이미 큐에 추가한 메시지 추적
+  const spokenMsgIdsRef = useRef<Set<string>>(new Set())
 
   // UI 모달 상태
   const [showRoundAdjust, setShowRoundAdjust] = useState(false)
@@ -174,25 +174,9 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true
-      initDebate(debate)
+      initDebate(debate, initialMessages)
     }
-  }, [debate, initDebate])
-
-  // TTS ON/OFF 변경 시 speakFn 등록/해제 — runRound가 await으로 TTS 완료를 기다림
-  useEffect(() => {
-    if (!ttsEnabled) {
-      setSpeakFn(null)
-      return
-    }
-    setSpeakFn((text: string, speaker: 'red' | 'blue') => {
-      const cfg = speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
-      const tone = cfg?.tone ?? 'default'
-      const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
-      const voice: TTSVoice = cfg?.voice ?? voiceMap[speaker]
-      return speak(text, { speaker, lang: language, voice })
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ttsEnabled, debate, language])
+  }, [debate, initDebate, initialMessages])
 
   // 스크롤: 새 메시지 오면 하단으로
   useEffect(() => {
@@ -208,23 +192,46 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
     }
   }, [isComplete, debate.is_sample])
 
-  // 토론 완료 시 결론 자동 표시
+  // 토론 완료 시 TTS 중단 + 결론 자동 표시
   useEffect(() => {
-    if (isComplete && reportContent) {
-      setShowReport(true)
+    if (isComplete) {
+      stop()
+      if (reportContent) setShowReport(true)
     }
-  }, [isComplete, reportContent])
+  }, [isComplete, reportContent, stop])
+
+  // 자동 모드 + TTS 켜짐: 스트리밍 완료된 메시지를 큐에 순차 추가
+  useEffect(() => {
+    if (!ttsEnabled || !isSupported) return
+    const finalized = messages.filter(
+      (m) => !m.isStreaming && (m.speaker === 'red' || m.speaker === 'blue') && !spokenMsgIdsRef.current.has(m.id)
+    )
+    for (const msg of finalized) {
+      spokenMsgIdsRef.current.add(msg.id)
+      const cfg = msg.speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
+      const tone = cfg?.tone ?? 'default'
+      const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
+      const voice = (cfg?.voice ?? voiceMap[msg.speaker as 'red' | 'blue']) as TTSVoice
+      enqueueMsg(msg.id, msg.content, { speaker: msg.speaker as 'red' | 'blue', lang: language, voice })
+    }
+  }, [messages, ttsEnabled, isSupported, debate.debate_config, language, enqueueMsg])
+
 
   const handleNextRound = useCallback(() => {
     stop()
-    runRound(debate, language, totalRounds, autoModeRef.current)
+    runRound(debate, language, totalRounds)
   }, [stop, runRound, debate, language, totalRounds])
 
-  const toggleAutoMode = () => {
-    const next = !autoMode
-    setAutoMode(next)
-    autoModeRef.current = next
-  }
+  const handleToggleTTS = useCallback(() => {
+    const next = !ttsEnabled
+    setTtsEnabled(next)
+    if (next) {
+      // 켜는 순간 이미 완료된 메시지를 spokenMsgIdsRef 초기화 후 즉시 큐 추가
+      spokenMsgIdsRef.current = new Set()
+    } else {
+      stop()
+    }
+  }, [ttsEnabled, setTtsEnabled, stop])
 
   const handleRoundAdjust = (n: number) => {
     adjustTotalRounds(n)
@@ -240,10 +247,8 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
 
   const isDebating = messages.length > 0 && !isComplete
 
-  // 현재 활성 화자: TTS 재생 중이면 ttsSpeaker 우선, 아니면 스트리밍 중인 화자
   const streamingMsg = messages.find((m) => m.isStreaming)
-  const streamingSpeaker = streamingMsg?.speaker ?? null
-  const activeSpeaker = (ttsEnabled && isSpeaking && ttsSpeaker) ? ttsSpeaker : streamingSpeaker
+  const activeSpeaker = streamingMsg?.speaker ?? null
 
   return (
     // 토론 중: 뷰포트 전체 고정, 푸터/스크롤 차단
@@ -266,6 +271,22 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
           <RoundIndicator currentRound={currentRound} totalRounds={totalRounds} isRunning={isRunning} />
         </div>
 
+        {/* TTS 토글 */}
+        {isSupported && (
+          <button
+            onClick={handleToggleTTS}
+            className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg border transition-all"
+            style={{
+              borderColor: ttsEnabled ? 'rgba(99,102,241,0.5)' : 'var(--border)',
+              color: ttsEnabled ? 'var(--accent)' : 'var(--text-muted)',
+              backgroundColor: ttsEnabled ? 'rgba(99,102,241,0.08)' : 'transparent',
+            }}
+            title={ttsEnabled ? '음성 끄기' : '음성 켜기'}
+          >
+            {ttsEnabled ? '🔊' : '🔇'}
+          </button>
+        )}
+
         {/* 라운드 조정 버튼 */}
         {!isComplete && (
           <button
@@ -279,142 +300,10 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
         )}
       </div>
 
-      {/* 의제 + TTS 토글 + 모드 */}
-      <div className="shrink-0 px-3 sm:px-4 py-2 border-b flex items-start justify-between gap-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-muted)' }}>TOPIC</p>
-          <p className="text-xs sm:text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>{debate.topic}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* 자동/수동 모드 토글 */}
-          <button
-            onClick={toggleAutoMode}
-            className="text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all"
-            style={{
-              borderColor: autoMode ? 'rgba(99,102,241,0.5)' : 'var(--border)',
-              color: autoMode ? 'var(--accent)' : 'var(--text-muted)',
-              backgroundColor: autoMode ? 'rgba(99,102,241,0.08)' : 'transparent',
-            }}
-            title={autoMode ? '자동 진행 중 (클릭하여 수동으로)' : '수동 진행 중 (클릭하여 자동으로)'}
-          >
-            {autoMode ? '⚡ 자동' : '👆 수동'}
-          </button>
-
-          {/* TTS 토글 */}
-          {isSupported && (
-            <div className="flex items-center gap-1">
-              {/* 배속 선택 — TTS 켜져 있을 때만 표시 */}
-              {ttsEnabled && (
-                <div className="flex gap-0.5">
-                  {TTS_SPEEDS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSpeed(s)}
-                      className="text-[10px] font-bold px-1.5 py-1 rounded transition-all"
-                      style={{
-                        backgroundColor: speed === s ? 'rgba(99,102,241,0.2)' : 'transparent',
-                        color: speed === s ? 'var(--accent)' : 'var(--text-muted)',
-                        border: speed === s ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
-                      }}
-                    >
-                      {s}x
-                    </button>
-                  ))}
-                </div>
-              )}
-              {/* 볼륨 슬라이더 + 음소거 — TTS 켜져 있을 때만 표시 */}
-              {ttsEnabled && (
-                <div className="flex items-center gap-1">
-                  {/* 음소거 버튼 */}
-                  <button
-                    onClick={toggleMute}
-                    className="flex items-center justify-center w-7 h-7 rounded-lg border transition-all"
-                    style={{
-                      borderColor: isMuted ? 'rgba(239,68,68,0.5)' : 'var(--border)',
-                      color: isMuted ? '#ef4444' : 'var(--text-muted)',
-                      backgroundColor: isMuted ? 'rgba(239,68,68,0.08)' : 'transparent',
-                    }}
-                    title={isMuted ? '음소거 해제' : '음소거'}
-                  >
-                    {isMuted ? (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                        <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-                      </svg>
-                    ) : (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                        {volume > 0.5 ? <><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></> : <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />}
-                      </svg>
-                    )}
-                  </button>
-                  {/* 볼륨 슬라이더 */}
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={isMuted ? 0 : volume}
-                    onChange={(e) => {
-                      const v = Number(e.target.value)
-                      if (isMuted && v > 0) toggleMute()
-                      setVolume(v)
-                    }}
-                    className="w-16 accent-indigo-500"
-                    title={`볼륨 ${Math.round((isMuted ? 0 : volume) * 100)}%`}
-                    style={{ height: '4px' }}
-                  />
-                </div>
-              )}
-              {/* pause/resume — TTS 재생 중일 때만 표시 */}
-              {ttsEnabled && isSpeaking && (
-                <button
-                  onClick={isPaused ? resume : pause}
-                  className="flex items-center justify-center w-7 h-7 rounded-lg border transition-all"
-                  style={{
-                    borderColor: 'rgba(99,102,241,0.5)',
-                    color: 'var(--accent)',
-                    backgroundColor: 'rgba(99,102,241,0.08)',
-                  }}
-                  title={isPaused ? '재생' : '일시정지'}
-                >
-                  {isPaused ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                  ) : (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
-                  )}
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  const next = !ttsEnabled
-                  if (!next) stop()
-                  setTtsEnabled(next)
-                }}
-                className="flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all"
-                style={{
-                  borderColor: ttsEnabled ? 'rgba(99,102,241,0.5)' : 'var(--border)',
-                  color: ttsEnabled ? 'var(--accent)' : 'var(--text-muted)',
-                  backgroundColor: ttsEnabled ? 'rgba(99,102,241,0.08)' : 'transparent',
-                }}
-              >
-                {isSpeaking && !isPaused ? (
-                  <span className="flex gap-0.5 items-end h-3">
-                    <span className="w-0.5 rounded-full bg-current animate-pulse" style={{ height: '60%' }} />
-                    <span className="w-0.5 rounded-full bg-current animate-pulse" style={{ height: '100%', animationDelay: '0.15s' }} />
-                    <span className="w-0.5 rounded-full bg-current animate-pulse" style={{ height: '70%', animationDelay: '0.3s' }} />
-                  </span>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    {ttsEnabled ? <><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></> : <line x1="23" y1="9" x2="17" y2="15" />}
-                  </svg>
-                )}
-                <span className="hidden sm:inline">{ttsEnabled ? (isPaused ? '일시정지' : 'ON') : 'TTS'}</span>
-              </button>
-            </div>
-          )}
-        </div>
+      {/* 의제 */}
+      <div className="shrink-0 px-3 sm:px-4 py-2 border-b" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+        <p className="text-xs font-black uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-muted)' }}>TOPIC</p>
+        <p className="text-xs sm:text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>{debate.topic}</p>
       </div>
 
       {/* 메시지 영역 — 스크롤 가능 */}
@@ -427,9 +316,7 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
                 {t('토론을 시작할 준비가 됐습니다', 'Ready to start the debate')}
               </p>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                {autoMode
-                  ? t('아래 버튼을 누르면 자동으로 전 라운드를 진행합니다', 'Press the button to run all rounds automatically')
-                  : t('아래 버튼을 눌러 첫 라운드를 시작하세요', 'Press the button below to start Round 1')}
+                {t('아래 버튼을 눌러 첫 라운드를 시작하세요', 'Press the button below to start Round 1')}
               </p>
             </div>
           </div>
@@ -447,12 +334,28 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
         )}
 
         {messages.map((msg, i) => {
+          // 라운드 첫 메시지 여부 — RED 발언이 시작될 때 구분선 표시
+          const isRoundStart = msg.speaker === 'red' && (i === 0 || messages[i - 1].roundNumber !== msg.roundNumber)
           // 해당 라운드의 사용자 메모 표시
           const memo = msg.speaker === 'blue' && !msg.isStreaming
             ? userMemos.find((m) => m.round === msg.roundNumber)
             : undefined
           return (
             <div key={msg.id}>
+              {isRoundStart && (
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+                  <span
+                    className="text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
+                    style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+                  >
+                    {msg.isFinalRound
+                      ? (language === 'ko' ? '최종 라운드' : 'Final Round')
+                      : `Round ${msg.roundNumber}`}
+                  </span>
+                  <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+                </div>
+              )}
               <MessageBubble
                 speaker={msg.speaker}
                 content={msg.content}
@@ -463,15 +366,14 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
                 isStreaming={msg.isStreaming}
                 index={i}
                 onSpeak={isSupported && !msg.isStreaming && (msg.speaker === 'red' || msg.speaker === 'blue') ? (content, speaker) => {
-                  stop()
-                  setSpeakingMsgId(msg.id)
                   const cfg = speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
                   const tone = cfg?.tone ?? 'default'
                   const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
                   const voice = cfg?.voice ?? voiceMap[speaker]
-                  speak(content, { speaker, lang: language, voice }).then(() => setSpeakingMsgId(null))
+                  speakMsg(msg.id, content, speaker, { speaker, lang: language, voice })
                 } : undefined}
                 isSpeakingThis={speakingMsgId === msg.id}
+                factChecks={msg.factChecks}
               />
               {memo && (
                 <div className="flex justify-center my-2">
@@ -508,95 +410,51 @@ export default function DebateArena({ debate, initialReport }: DebateArenaProps)
             </div>
           )}
 
-          {/* 수동 모드일 때만 다음 라운드 버튼 표시 */}
-          {!autoMode && (
-            <>
-              {roundErrorCount >= 2 && !isRunning && (
-                <p className="text-xs text-center mb-2" style={{ color: '#ef4444' }}>
-                  {t('오류가 발생했습니다. 다시 시도하세요.', 'An error occurred. Please retry.')}
-                </p>
-              )}
-              <Button onClick={handleNextRound} disabled={isRunning} size="lg" className="w-full">
-                {isRunning
-                  ? t('AI 토론 중...', 'AI debating...')
-                  : messages.length === 0
-                  ? t('라운드 1 시작', 'Start Round 1')
-                  : currentRound === totalRounds
-                  ? t(`최종 라운드 ${currentRound} 시작`, `Start Final Round ${currentRound}`)
-                  : t(`라운드 ${currentRound} 시작`, `Start Round ${currentRound}`)}
-              </Button>
-            </>
-          )}
-
-          {/* 자동 모드일 때: 시작 버튼 (첫 라운드만) 또는 진행 중 표시 */}
-          {autoMode && messages.length === 0 && (
-            <Button onClick={handleNextRound} disabled={isRunning} size="lg" className="w-full">
-              {isRunning ? t('AI 토론 중...', 'AI debating...') : t('⚡ 자동 토론 시작', '⚡ Start Auto Debate')}
-            </Button>
-          )}
-
-          {(autoMode && messages.length > 0 && isRunning) || (ttsEnabled && isSpeaking) ? (
-            <div className="w-full h-12 flex items-center justify-center gap-3 rounded-xl overflow-hidden relative"
+          {/* 진행 중: 발언자 표시 */}
+          {isRunning && (
+            <div className="w-full h-11 flex items-center justify-center gap-3 rounded-xl mb-2"
               style={{
-                backgroundColor: activeSpeaker === 'red'
-                  ? 'rgba(239,68,68,0.08)'
-                  : activeSpeaker === 'blue'
-                    ? 'rgba(59,130,246,0.08)'
-                    : 'rgba(99,102,241,0.08)',
+                backgroundColor: activeSpeaker === 'red' ? 'rgba(239,68,68,0.08)' : activeSpeaker === 'blue' ? 'rgba(59,130,246,0.08)' : 'rgba(99,102,241,0.08)',
                 border: `1px solid ${activeSpeaker === 'red' ? 'rgba(239,68,68,0.3)' : activeSpeaker === 'blue' ? 'rgba(59,130,246,0.3)' : 'rgba(99,102,241,0.2)'}`,
               }}>
-              {/* 물결 애니메이션 */}
-              <span className="flex gap-0.5 items-end h-4">
-                {[0, 1, 2, 3].map((i) => (
+              <span className="flex gap-0.5 items-end h-3.5">
+                {[60, 100, 70, 85].map((h, i) => (
                   <span key={i} className="w-0.5 rounded-full animate-pulse"
-                    style={{
-                      height: `${[60, 100, 70, 85][i]}%`,
-                      backgroundColor: activeSpeaker === 'red' ? '#ef4444' : activeSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
-                      animationDelay: `${i * 0.12}s`,
-                    }} />
+                    style={{ height: `${h}%`, backgroundColor: activeSpeaker === 'red' ? '#ef4444' : activeSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)', animationDelay: `${i * 0.12}s` }} />
                 ))}
               </span>
-              <span className="text-sm font-bold"
-                style={{
-                  color: activeSpeaker === 'red' ? '#ef4444' : activeSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)',
-                }}>
+              <span className="text-xs font-bold" style={{ color: activeSpeaker === 'red' ? '#ef4444' : activeSpeaker === 'blue' ? '#3b82f6' : 'var(--accent)' }}>
                 {activeSpeaker === 'red'
-                  ? t(
-                      ttsEnabled && isSpeaking ? `🔴 RED 낭독 중 — 라운드 ${currentRound}` : `🔴 RED 발언 중 — 라운드 ${currentRound}`,
-                      ttsEnabled && isSpeaking ? `🔴 RED reading — Round ${currentRound}` : `🔴 RED speaking — Round ${currentRound}`
-                    )
+                  ? t(`🔴 RED 발언 중`, `🔴 RED speaking`)
                   : activeSpeaker === 'blue'
-                    ? t(
-                        ttsEnabled && isSpeaking ? `🔵 BLUE 낭독 중 — 라운드 ${currentRound}` : `🔵 BLUE 발언 중 — 라운드 ${currentRound}`,
-                        ttsEnabled && isSpeaking ? `🔵 BLUE reading — Round ${currentRound}` : `🔵 BLUE speaking — Round ${currentRound}`
-                      )
+                    ? t(`🔵 BLUE 발언 중`, `🔵 BLUE speaking`)
                     : t(`라운드 ${currentRound} 진행 중...`, `Round ${currentRound} in progress...`)}
               </span>
             </div>
-          ) : null}
+          )}
 
-          {autoMode && messages.length > 0 && !isRunning && roundErrorCount >= 2 && (
-            <div className="w-full px-4 py-3 rounded-xl flex items-center justify-between gap-3" style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
-              <span className="text-xs" style={{ color: '#ef4444' }}>
-                {t('연결 오류가 발생했습니다', 'Connection error occurred')}
-              </span>
-              <button
-                onClick={() => { resetRoundError(); runRound(debate, language, totalRounds) }}
-                className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}
-              >
+          {/* 오류 */}
+          {roundErrorCount >= 2 && !isRunning && (
+            <div className="w-full px-4 py-2.5 rounded-xl flex items-center justify-between gap-3 mb-2" style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
+              <span className="text-xs" style={{ color: '#ef4444' }}>{t('연결 오류가 발생했습니다', 'Connection error occurred')}</span>
+              <button onClick={() => { resetRoundError(); runRound(debate, language, totalRounds) }}
+                className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
                 {t('재시도', 'Retry')}
               </button>
             </div>
           )}
 
-          {autoMode && messages.length > 0 && !isRunning && roundErrorCount < 2 && (
-            <div className="w-full h-12 flex items-center justify-center gap-2 rounded-xl" style={{ backgroundColor: 'rgba(99,102,241,0.04)', border: '1px dashed rgba(99,102,241,0.2)' }}>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {t(`라운드 ${currentRound} 준비 중...`, `Preparing round ${currentRound}...`)}
-              </span>
-            </div>
-          )}
+          {/* 다음 라운드 버튼 — 항상 표시 */}
+          <Button onClick={handleNextRound} disabled={isRunning} size="lg" className="w-full">
+            {isRunning
+              ? t('AI 토론 중...', 'AI debating...')
+              : messages.length === 0
+              ? t('라운드 1 시작', 'Start Round 1')
+              : currentRound === totalRounds
+              ? t(`최종 라운드 ${currentRound} 시작`, `Start Final Round ${currentRound}`)
+              : t(`라운드 ${currentRound} 시작`, `Start Round ${currentRound}`)}
+          </Button>
+
         </div>
       )}
 

@@ -14,6 +14,7 @@ export async function saveProfileAndConsent() {
   const service = await createServiceClient()
   const meta = user.user_metadata ?? {}
 
+  // plan 컬럼은 건드리지 않음 — callback에서 신규 가입 시 이미 'free'로 세팅됨
   const { error: profileError } = await service.from('sparring_profiles').upsert({
     id: user.id,
     email: user.email ?? null,

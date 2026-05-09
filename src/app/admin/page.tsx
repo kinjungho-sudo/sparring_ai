@@ -34,6 +34,7 @@ async function getDashboardStats() {
 
 const navItems = [
   { href: '/admin/customers', label: '고객 관리', icon: '👥' },
+  { href: '/admin/waitlist', label: '웨이트리스트', icon: '📬' },
   { href: '/admin/debates', label: '토론 로그', icon: '💬' },
   { href: '/admin/api-cost', label: 'API 비용', icon: '💰' },
   { href: '/admin/logs', label: '시스템 로그', icon: '📋' },
@@ -72,7 +73,7 @@ export default async function AdminPage() {
       </div>
 
       {/* 네비게이션 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {navItems.map((item) => (
           <Link
             key={item.href}

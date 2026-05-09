@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 
 const FREE_DAILY_LIMIT = process.env.FREE_DAILY_LIMIT ? parseInt(process.env.FREE_DAILY_LIMIT) : 3
+const PRO_DAILY_LIMIT = 30
 
 async function getUserPlan(supabase: Awaited<ReturnType<typeof createServiceClient>>, userId: string): Promise<'free' | 'pro'> {
   const { data } = await supabase
@@ -21,7 +22,7 @@ export async function checkAndIncrementUsage(userId: string): Promise<{ allowed:
 
   const plan = await getUserPlan(supabase, userId)
 
-  // pro 플랜은 무제한
+  // pro 플랜: 일일 30회 제한
   if (plan === 'pro') {
     const { data: existing } = await supabase
       .from('sparring_usage')
@@ -30,6 +31,9 @@ export async function checkAndIncrementUsage(userId: string): Promise<{ allowed:
       .eq('date', today)
       .single()
 
+    if (existing && existing.count >= PRO_DAILY_LIMIT) {
+      return { allowed: false, count: existing.count, plan }
+    }
     if (existing) {
       await supabase.from('sparring_usage').update({ count: existing.count + 1 }).eq('id', existing.id)
       return { allowed: true, count: existing.count + 1, plan }
@@ -75,6 +79,6 @@ export async function getTodayUsage(userId: string): Promise<{ count: number; pl
   return {
     count: data?.count ?? 0,
     plan,
-    limit: plan === 'pro' ? Infinity : FREE_DAILY_LIMIT,
+    limit: plan === 'pro' ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT,
   }
 }

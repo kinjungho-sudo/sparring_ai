@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { FactCheck } from '@/hooks/useDebate'
 
 // 화면 표시: 마크다운 기호만 제거, 줄바꿈은 유지
 function cleanForDisplay(text: string): string {
@@ -18,6 +19,7 @@ function cleanForDisplay(text: string): string {
     .trim()
 }
 
+
 interface MessageBubbleProps {
   speaker: 'red' | 'blue' | 'host'
   content: string
@@ -29,6 +31,13 @@ interface MessageBubbleProps {
   index?: number
   onSpeak?: (content: string, speaker: 'red' | 'blue') => void
   isSpeakingThis?: boolean
+  factChecks?: FactCheck[]
+}
+
+const VERDICT_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  TRUE:      { label: '✓ TRUE',      color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
+  FALSE:     { label: '✗ FALSE',     color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
+  MISLEADING:{ label: '△ MISLEADING',color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
 }
 
 export default function MessageBubble({
@@ -42,6 +51,7 @@ export default function MessageBubble({
   index = 0,
   onSpeak,
   isSpeakingThis,
+  factChecks,
 }: MessageBubbleProps) {
   const isRed = speaker === 'red'
   const isBlue = speaker === 'blue'
@@ -50,6 +60,51 @@ export default function MessageBubble({
   const [showFactNote, setShowFactNote] = useState(false)
 
   if (isHost) {
+    // 팩트체크 버블
+    if (factChecks && factChecks.length > 0) {
+      return (
+        <div className="flex justify-center my-3 animate-fade-slide-in" style={{ animationDelay: `${delay}ms` }}>
+          <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-xl border overflow-hidden"
+            style={{ borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.04)' }}>
+            <div className="px-4 py-2 border-b flex items-center gap-2"
+              style={{ borderColor: 'rgba(245,158,11,0.2)', backgroundColor: 'rgba(245,158,11,0.08)' }}>
+              <span className="text-xs font-black" style={{ color: '#f59e0b' }}>⚖️ 사회자 팩트체크</span>
+              <span className="text-[10px] font-semibold opacity-60" style={{ color: '#f59e0b' }}>Round {roundNumber}</span>
+            </div>
+            <div className="divide-y" style={{ borderColor: 'rgba(245,158,11,0.12)' }}>
+              {factChecks.map((fc, i) => {
+                const vs = VERDICT_STYLE[fc.verdict] ?? VERDICT_STYLE.MISLEADING
+                const speakerLabel = fc.speaker === 'red' ? '🔴 RED' : '🔵 BLUE'
+                return (
+                  <div key={i} className="px-4 py-3" style={{ backgroundColor: vs.bg }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black" style={{ color: fc.speaker === 'red' ? '#ef4444' : '#3b82f6' }}>{speakerLabel}</span>
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ color: vs.color, backgroundColor: `${vs.color}18`, border: `1px solid ${vs.color}40` }}>{vs.label}</span>
+                    </div>
+                    <p className="text-[11px] mb-1 italic opacity-70" style={{ color: 'var(--text-muted)' }}>&ldquo;{fc.claim}&rdquo;</p>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{fc.note}</p>
+                    {fc.source_url && (
+                      <a
+                        href={fc.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-semibold underline underline-offset-2 opacity-70 hover:opacity-100 transition-opacity"
+                        style={{ color: '#f59e0b' }}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        {fc.source_label ?? '출처 확인'}
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // 일반 사회자 버블
     return (
       <div
         className="flex justify-center my-3 animate-fade-slide-in"
@@ -73,11 +128,22 @@ export default function MessageBubble({
       <div className="max-w-[92%] sm:max-w-[85%]">
         {/* 라벨 */}
         <div
-          className={`text-xs font-black mb-1.5 ${isBlue ? 'text-right' : 'text-left'}`}
+          className={`text-xs font-black mb-1.5 flex items-center gap-1.5 ${isBlue ? 'justify-end' : 'justify-start'}`}
           style={{ color: isRed ? 'var(--red)' : 'var(--blue)' }}
         >
           {isRed ? '🔴 RED (찬성)' : '🔵 BLUE (반대)'}
-          {isFinalRound && <span className="ml-2 opacity-60">· 최종 발언</span>}
+          {isFinalRound && <span className="opacity-60">· 최종 발언</span>}
+          {isSpeakingThis && (
+            <span className="flex items-center gap-0.5">
+              <span className="flex gap-0.5 items-end h-3">
+                {[60, 100, 70, 85].map((h, i) => (
+                  <span key={i} className="w-0.5 rounded-full animate-pulse"
+                    style={{ height: `${h}%`, backgroundColor: isRed ? '#ef4444' : '#3b82f6', animationDelay: `${i * 0.1}s` }} />
+                ))}
+              </span>
+              <span className="text-[10px] font-semibold opacity-80">낭독 중</span>
+            </span>
+          )}
         </div>
 
         {/* 버블 */}
@@ -85,8 +151,14 @@ export default function MessageBubble({
           className={`px-4 py-3 rounded-2xl text-sm leading-relaxed relative whitespace-pre-wrap ${isStreaming ? 'streaming-cursor' : ''}`}
           style={{
             backgroundColor: isRed ? 'var(--red-dim)' : 'var(--blue-dim)',
-            border: `1.5px solid ${isRed ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)'}`,
+            border: isSpeakingThis
+              ? `1.5px solid ${isRed ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.6)'}`
+              : `1.5px solid ${isRed ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)'}`,
             color: 'var(--text-primary)',
+            boxShadow: isSpeakingThis
+              ? `0 0 0 2px ${isRed ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)'}`
+              : undefined,
+            transition: 'border-color 0.2s, box-shadow 0.2s',
           }}
         >
           {isStreaming ? content : cleanForDisplay(content)}

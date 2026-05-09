@@ -12,6 +12,7 @@ interface TTSOptions {
 interface QueueItem {
   text: string
   options: TTSOptions
+  msgId?: string
   onDone?: () => void
 }
 
@@ -110,13 +111,19 @@ export function useTTS() {
   const queueRef = useRef<QueueItem[]>([])
   const isProcessingRef = useRef(false)
 
+  // stop() 호출 시 진행 중인 playSingle을 즉시 settle하기 위한 세대(generation) 카운터
+  // playSingle 시작 시점의 세대와 현재 세대가 다르면 이미 stop()된 것으로 간주
+  const generationRef = useRef(0)
+
   // pause/resume용
   const pauseResolveRef = useRef<(() => void) | null>(null)
   const isPausedRef = useRef(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    if (typeof window === 'undefined') return
+    // Audio 재생 가능하면 TTS 지원 (OpenAI TTS는 SpeechSynthesis 불필요)
     setIsSupported(true)
+    if (!('speechSynthesis' in window)) return
     const loadVoices = () => {
       const v = window.speechSynthesis.getVoices()
       if (v.length > 0) voicesRef.current = v
@@ -135,8 +142,12 @@ export function useTTS() {
     const cleaned = cleanForTTS(text)
     if (!cleaned) return
 
+    // 이 playSingle이 시작될 때의 세대를 캡처 — stop() 호출 시 세대가 바뀌면 즉시 포기
+    const myGeneration = generationRef.current
+
     if (openaiAvailableRef.current === false) {
-      return playBrowser(cleaned, options)
+      if (generationRef.current !== myGeneration) return
+      return playBrowser(cleaned, options, myGeneration)
     }
 
     try {
@@ -148,15 +159,30 @@ export function useTTS() {
         body: JSON.stringify({ text: cleaned, voice: options.voice }),
       })
 
+      // fetch 중 stop()이 불렸으면 버림
+      if (generationRef.current !== myGeneration) {
+        setIsSpeaking(false)
+        setTtsSpeaker(null)
+        return
+      }
+
       if (!resp.ok) {
         openaiAvailableRef.current = false
         setIsSpeaking(false)
-        return playBrowser(cleaned, options)
+        return playBrowser(cleaned, options, myGeneration)
       }
 
       openaiAvailableRef.current = true
       const blob = await resp.blob()
       const url = URL.createObjectURL(blob)
+
+      // blob 받는 중 stop()이 불렸으면 버림
+      if (generationRef.current !== myGeneration) {
+        URL.revokeObjectURL(url)
+        setIsSpeaking(false)
+        setTtsSpeaker(null)
+        return
+      }
 
       return new Promise<void>((resolve) => {
         const audio = new Audio(url)
@@ -167,13 +193,16 @@ export function useTTS() {
         const done = () => {
           if (settled) return
           settled = true
-          setIsSpeaking(false)
-          setIsPaused(false)
-          setTtsSpeaker(null)
-          isPausedRef.current = false
+          // 세대가 바뀌었으면 (stop() 호출됨) 상태 건드리지 않음 — stop()이 이미 리셋함
+          if (generationRef.current === myGeneration) {
+            setIsSpeaking(false)
+            setIsPaused(false)
+            setTtsSpeaker(null)
+            isPausedRef.current = false
+            audioRef.current = null
+            pauseResolveRef.current = null
+          }
           URL.revokeObjectURL(url)
-          audioRef.current = null
-          pauseResolveRef.current = null
           resolve()
         }
         audio.onended = done
@@ -182,15 +211,17 @@ export function useTTS() {
       })
     } catch {
       openaiAvailableRef.current = false
-      setIsSpeaking(false)
-      return playBrowser(cleaned, options)
+      if (generationRef.current === myGeneration) setIsSpeaking(false)
+      if (generationRef.current !== myGeneration) return
+      return playBrowser(cleaned, options, myGeneration)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function playBrowser(text: string, options: TTSOptions): Promise<void> {
+  function playBrowser(text: string, options: TTSOptions, myGeneration: number): Promise<void> {
     return new Promise((resolve) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) { resolve(); return }
       if (isMutedRef.current) { resolve(); return }
+      if (generationRef.current !== myGeneration) { resolve(); return }
       window.speechSynthesis.cancel()
       const utter = new SpeechSynthesisUtterance(text)
       utter.volume = volumeRef.current
@@ -200,12 +231,23 @@ export function useTTS() {
       const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices()
       const voice = pickBrowserVoice(voices, utter.lang, options.speaker === 'red' ? 0 : 1)
       if (voice) utter.voice = voice
-      utter.onstart = () => { setIsSpeaking(true); setTtsSpeaker(options.speaker) }
-      utter.onend = () => { setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null); resolve() }
-      utter.onerror = () => { setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null); resolve() }
+      utter.onstart = () => {
+        if (generationRef.current !== myGeneration) { window.speechSynthesis.cancel(); return }
+        setIsSpeaking(true); setTtsSpeaker(options.speaker)
+      }
+      utter.onend = () => {
+        if (generationRef.current === myGeneration) { setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null) }
+        resolve()
+      }
+      utter.onerror = () => {
+        if (generationRef.current === myGeneration) { setIsSpeaking(false); setIsPaused(false); setTtsSpeaker(null) }
+        resolve()
+      }
       window.speechSynthesis.speak(utter)
     })
   }
+
+  const setSpeakingMsgIdRef = useRef<((id: string | null) => void) | null>(null)
 
   const processQueue = useCallback(async () => {
     if (isProcessingRef.current) return
@@ -213,17 +255,18 @@ export function useTTS() {
 
     try {
       while (queueRef.current.length > 0) {
-        if (!ttsEnabledRef.current) {
-          queueRef.current = []
-          break
-        }
         const item = queueRef.current.shift()!
+        if (item.msgId) setSpeakingMsgIdRef.current?.(item.msgId)
         try {
           await playSingle(item.text, item.options)
         } catch {
           // 개별 항목 실패해도 큐 계속 처리
         }
         item.onDone?.()
+        // 다음 msgId 항목이 없으면 speakingMsgId 초기화
+        if (item.msgId && !queueRef.current.find((q) => q.msgId)) {
+          setSpeakingMsgIdRef.current?.(null)
+        }
       }
     } finally {
       isProcessingRef.current = false
@@ -272,10 +315,14 @@ export function useTTS() {
   }, [])
 
   const stop = useCallback(() => {
+    // 세대를 올려서 현재 진행 중인 모든 playSingle이 즉시 포기하도록 함
+    generationRef.current += 1
     queueRef.current = []
     isProcessingRef.current = false
     isPausedRef.current = false
     if (audioRef.current) {
+      audioRef.current.onended = null
+      audioRef.current.onerror = null
       audioRef.current.pause()
       audioRef.current = null
     }
@@ -287,5 +334,24 @@ export function useTTS() {
     setTtsSpeaker(null)
   }, [])
 
-  return { speak, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported, speed, setSpeed: setSpeedSync, volume, setVolume: setVolumeSync, isMuted, toggleMute }
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null)
+  // processQueue에서 setSpeakingMsgId를 호출할 수 있도록 ref로 연결
+  setSpeakingMsgIdRef.current = setSpeakingMsgId
+
+  // 개별 듣기 버튼: ttsEnabled 무관, 진행 중 재생 중단 후 단독 재생
+  const speakMsg = useCallback((msgId: string, content: string, speaker: 'red' | 'blue', options: TTSOptions) => {
+    stop()
+    setSpeakingMsgId(msgId)
+    playSingle(content, options).then(() => setSpeakingMsgId(null))
+  }, [playSingle, stop])
+
+  // 자동 TTS: ttsEnabled 무관, 큐에 순차 추가 (stop() 없이) — processQueue가 msgId 기반으로 speakingMsgId 관리
+  const enqueueMsg = useCallback((msgId: string, text: string, options: TTSOptions) => {
+    const cleaned = cleanForTTS(text)
+    if (!cleaned) return
+    queueRef.current.push({ text: cleaned, options, msgId })
+    processQueue()
+  }, [processQueue])
+
+  return { speak, speakMsg, enqueueMsg, stop, pause, resume, isSpeaking, isPaused, ttsSpeaker, ttsEnabled, setTtsEnabled: setTtsEnabledSync, isSupported, speed, setSpeed: setSpeedSync, volume, setVolume: setVolumeSync, isMuted, toggleMute, speakingMsgId, setSpeakingMsgId }
 }

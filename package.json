@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",
+    "@fontsource/noto-sans-kr": "^5.2.9",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.3",
     "ai": "^6.0.175",

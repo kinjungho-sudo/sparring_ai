@@ -9,7 +9,22 @@ import type { User } from '@supabase/supabase-js'
 export default function Header() {
   const { language, setLanguage, t } = useLanguage()
   const [user, setUser] = useState<User | null>(null)
+  const [isDark, setIsDark] = useState(true)
   const supabase = createClient()
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme')
+    const dark = saved !== 'light'
+    setIsDark(dark)
+    document.documentElement.classList.toggle('light', !dark)
+  }, [])
+
+  const toggleTheme = () => {
+    const next = !isDark
+    setIsDark(next)
+    document.documentElement.classList.toggle('light', !next)
+    localStorage.setItem('theme', next ? 'dark' : 'light')
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -52,6 +67,16 @@ export default function Header() {
           style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
         >
           {language === 'ko' ? 'EN' : 'KO'}
+        </button>
+
+        {/* 다크/라이트 모드 토글 */}
+        <button
+          onClick={toggleTheme}
+          className="text-xs px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
+          style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
+          title={isDark ? '라이트 모드' : '다크 모드'}
+        >
+          {isDark ? '☀️' : '🌙'}
         </button>
 
         {user ? (

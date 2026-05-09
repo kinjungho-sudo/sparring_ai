@@ -39,7 +39,7 @@ export interface Report {
   /** new structured fields */
   speech_summaries: Array<{ speaker: string; round: number; summary: string }> | null
   key_points: string[] | null
-  fact_checks: Array<{ speaker: string; note: string | null }> | null
+  fact_checks: Array<{ speaker: string; verdict?: string | null; note: string | null; source_label?: string | null; source_url?: string | null }> | null
   verdict: { winner: 'red' | 'blue' | null; reason?: string | null; conclusion?: string | null } | null
   /** legacy fields */
   red_summary: string | null
@@ -62,12 +62,13 @@ export interface Usage {
 export interface ReportData {
   speech_summaries?: Array<{ speaker: string; round: number; summary: string }> | null
   key_points?: string[] | null
-  fact_checks?: Array<{ speaker: string; note: string | null }> | null
+  fact_checks?: Array<{ speaker: string; verdict?: string | null; note: string | null; source_label?: string | null; source_url?: string | null }> | null
   verdict?: {
     winner: 'red' | 'blue' | null
     reason?: string | null
     conclusion?: string | null
   } | null
+  insight?: string | null
   /** @deprecated legacy fields kept for backward-compat when loading old saved reports */
   red_summary?: string | null
   blue_summary?: string | null

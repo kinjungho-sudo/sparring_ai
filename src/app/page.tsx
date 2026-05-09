@@ -2,7 +2,6 @@ import { FAQSchema } from '@/components/seo/FAQSchema'
 import HeroSection from '@/components/landing/HeroSection'
 import DemoSection from '@/components/landing/DemoSection'
 import PainPointSection from '@/components/landing/PainPointSection'
-import HowItWorksSection from '@/components/landing/HowItWorksSection'
 import PricingSection from '@/components/landing/PricingSection'
 import FAQSection from '@/components/landing/FAQSection'
 import WaitlistSection from '@/components/landing/WaitlistSection'
@@ -20,10 +19,7 @@ export default function HomePage() {
       {/* 3. 문제 공감 — "이런 상황인가요?" → 해결책 */}
       <PainPointSection />
 
-      {/* 4. 작동 방식 — 3단계 */}
-      <HowItWorksSection />
-
-      {/* 5. 가격 */}
+      {/* 4. 가격 */}
       <section id="pricing"><PricingSection /></section>
 
       {/* 6. FAQ */}

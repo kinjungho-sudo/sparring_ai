@@ -3,9 +3,13 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: '내 계정' }
+export const metadata: Metadata = {
+  title: '내 계정',
+  robots: { index: false, follow: false },
+}
 
-const FREE_DAILY_LIMIT = process.env.FREE_DAILY_LIMIT ? parseInt(process.env.FREE_DAILY_LIMIT) : 5
+const FREE_DAILY_LIMIT = process.env.FREE_DAILY_LIMIT ? parseInt(process.env.FREE_DAILY_LIMIT) : 3
+const PRO_DAILY_LIMIT = 30
 
 interface Debate {
   id: string
@@ -91,7 +95,7 @@ export default async function AccountPage() {
         <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4 text-center" style={{ borderColor: 'var(--border)' }}>
           <div>
             <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-              {isPro ? `${usedToday} / ∞` : `${usedToday} / ${FREE_DAILY_LIMIT}`}
+              {isPro ? `${usedToday} / ${PRO_DAILY_LIMIT}` : `${usedToday} / ${FREE_DAILY_LIMIT}`}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>오늘 사용</p>
           </div>

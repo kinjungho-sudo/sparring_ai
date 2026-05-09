@@ -107,7 +107,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto flex items-start justify-center pt-6 pb-8 px-4"
+      className="fixed inset-0 z-[60] overflow-y-auto flex items-start justify-center pt-20 pb-8 px-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.95)' }}
     >
       <div
@@ -177,19 +177,38 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
 
           {/* 3) 주장 검증 (팩트 체크) */}
           {factChecks && factChecks.length > 0 && (
-            <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.05)', animationDelay: '160ms' }}>
-              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>③ 주장 검증 (팩트 체크)</p>
-              <ul className="space-y-1.5">
+            <section className="rounded-xl border overflow-hidden report-section" style={{ borderColor: 'rgba(245,158,11,0.3)', animationDelay: '160ms' }}>
+              <div className="px-4 py-2.5 border-b" style={{ borderColor: 'rgba(245,158,11,0.2)', backgroundColor: 'rgba(245,158,11,0.08)' }}>
+                <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>③ 팩트 체크</p>
+              </div>
+              <div className="divide-y" style={{ borderColor: 'rgba(245,158,11,0.1)' }}>
                 {factChecks.map((fc, i) => {
                   const sp = SPEAKER_LABEL[fc.speaker] ?? { label: fc.speaker, color: 'var(--text-muted)' }
+                  const verdict = fc.verdict ?? 'FALSE'
+                  const vs = verdict === 'TRUE'
+                    ? { label: '✓ TRUE', color: '#22c55e', bg: 'rgba(34,197,94,0.06)' }
+                    : verdict === 'MISLEADING'
+                    ? { label: '△ MISLEADING', color: '#f59e0b', bg: 'rgba(245,158,11,0.06)' }
+                    : { label: '✗ FALSE', color: '#ef4444', bg: 'rgba(239,68,68,0.06)' }
                   return (
-                    <li key={i} className="text-sm flex gap-2" style={{ color: 'var(--text-secondary)' }}>
-                      <span className="font-black text-xs shrink-0 pt-0.5" style={{ color: sp.color }}>{sp.label}</span>
-                      <span className="leading-relaxed">{fc.note}</span>
-                    </li>
+                    <div key={i} className="px-4 py-3" style={{ backgroundColor: vs.bg }}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-black" style={{ color: sp.color }}>{sp.label}</span>
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ color: vs.color, backgroundColor: `${vs.color}18`, border: `1px solid ${vs.color}40` }}>{vs.label}</span>
+                      </div>
+                      <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--text-secondary)' }}>{fc.note}</p>
+                      {fc.source_url && (
+                        <a href={fc.source_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold underline underline-offset-2 opacity-70 hover:opacity-100 transition-opacity"
+                          style={{ color: '#f59e0b' }}>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          {fc.source_label ?? '출처 확인'}
+                        </a>
+                      )}
+                    </div>
                   )
                 })}
-              </ul>
+              </div>
             </section>
           )}
 
@@ -249,6 +268,27 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
             </section>
           )}
 
+          {/* ⑤ 인사이트 */}
+          {effectiveReport.insight && (
+            <section className="report-section" style={{ animationDelay: '320ms' }}>
+              <div
+                className="p-5 rounded-xl border relative overflow-hidden"
+                style={{
+                  borderColor: 'rgba(99,102,241,0.25)',
+                  background: 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.04) 100%)',
+                }}
+              >
+                <div className="absolute top-3 right-4 text-2xl opacity-10 select-none">💡</div>
+                <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>
+                  ⑤ 이 토론이 말하는 것
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)', fontStyle: 'italic' }}>
+                  {effectiveReport.insight}
+                </p>
+              </div>
+            </section>
+          )}
+
         </div>
 
         {/* 공유 */}
@@ -262,7 +302,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
         )}
 
         {/* 액션 버튼 */}
-        <div className="flex gap-3 px-5 sm:px-6 pb-6">
+        <div className="flex gap-2 px-5 sm:px-6 pb-6">
           <Link
             href="/debate/new"
             className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-colors flex items-center justify-center"
@@ -276,6 +316,15 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
           >
             홈
           </Link>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="h-11 px-4 rounded-xl border font-semibold text-sm transition-colors flex items-center justify-center hover:bg-white/5"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+            >
+              닫기
+            </button>
+          )}
         </div>
       </div>
     </div>

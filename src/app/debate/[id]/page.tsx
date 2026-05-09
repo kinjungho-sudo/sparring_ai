@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import DebateArena from '@/components/debate/DebateArena'
 import { getReport } from '@/lib/db/reports'
+import { getMessages } from '@/lib/db/messages'
 import type { Debate } from '@/types'
 
 interface Props { params: Promise<{ id: string }> }
@@ -67,7 +68,16 @@ export default async function DebatePage({ params }: Props) {
   }
 
   const isFinished = debate.status === 'completed' || debate.status === 'early_end'
-  const report = isFinished ? await getReport(id) : null
+  const [report, messages] = await Promise.all([
+    isFinished ? getReport(id) : Promise.resolve(null),
+    getMessages(id),
+  ])
 
-  return <DebateArena debate={debate as Debate} initialReport={report as import('@/types').ReportData | null} />
+  return (
+    <DebateArena
+      debate={debate as Debate}
+      initialReport={report as import('@/types').ReportData | null}
+      initialMessages={messages as import('@/types').Message[]}
+    />
+  )
 }

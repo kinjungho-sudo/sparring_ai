@@ -20,8 +20,8 @@ const TONE_OPTIONS: { value: DebaterTone; label: string; desc: string }[] = [
 
 const MODEL_OPTIONS: { value: DebateModel; label: string; badge: string; available: boolean }[] = [
   { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', badge: 'Anthropic', available: true },
-  { value: 'gemini-2-flash',    label: 'Gemini 2.0 Flash',  badge: 'Google',    available: false },
-  { value: 'gpt-4o-mini',       label: 'GPT-4o mini',       badge: 'OpenAI',    available: false },
+  { value: 'gemini-2-flash',    label: 'Gemini 2.0 Flash',  badge: 'Google',    available: true },
+  { value: 'gpt-4o-mini',       label: 'GPT-4o mini',       badge: 'OpenAI',    available: true },
 ]
 
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'txt']

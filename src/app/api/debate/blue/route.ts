@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { anthropic, MODEL, MAX_TOKENS } from '@/lib/ai/claude'
+import { streamText, MAX_TOKENS } from '@/lib/ai/stream'
 import { buildBluePrompt } from '@/lib/ai/prompts'
 import { createClient } from '@/lib/supabase/server'
 import { logApiCall } from '@/lib/db/api-logs'
-import type { Language, DebaterConfig } from '@/types'
+import type { Language, DebaterConfig, DebateModel } from '@/types'
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as {
@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
     language: Language
     history: Array<{ speaker: string; content: string }>
     blue_config?: DebaterConfig
+    model?: DebateModel
   }
-  const { debate_id, topic, currentRound, totalRounds, language, history, blue_config } = body
+  const { debate_id, topic, currentRound, totalRounds, language, history, blue_config, model = 'claude-sonnet-4-6' } = body
 
-  // Auth check: sample debates pass through; others require session + ownership
   if (debate_id) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -38,26 +38,16 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now()
   let streamError: string | null = null
 
-  const stream = await anthropic.messages.stream({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    messages: [{ role: 'user', content: prompt }],
-  })
-
   const encoder = new TextEncoder()
 
   const readable = new ReadableStream({
     async start(controller) {
       let tokenCount = 0
       try {
-        for await (const chunk of stream) {
-          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`))
-          }
-          if (chunk.type === 'message_delta' && chunk.usage) {
-            tokenCount = chunk.usage.output_tokens
-          }
-        }
+        const result = await streamText(model, prompt, MAX_TOKENS, (text) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`))
+        })
+        tokenCount = result.tokenCount
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, tokenCount })}\n\n`))
       } catch (err) {
         streamError = err instanceof Error ? err.message : 'stream error'

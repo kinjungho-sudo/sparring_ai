@@ -9,12 +9,13 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
     console.log('[callback] exchangeCodeForSession 결과:', error ?? 'OK')
 
     if (!error) {
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('[callback] getUser 결과:', { userId: user?.id, email: user?.email })
+      // exchangeCodeForSession 반환값에서 직접 user를 사용 — getUser() 재호출 시 타이밍 문제로 email이 null일 수 있음
+      const user = sessionData?.user ?? null
+      console.log('[callback] user:', { userId: user?.id, email: user?.email })
 
       if (!user) return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
 
@@ -28,13 +29,20 @@ export async function GET(request: Request) {
         .single()
       console.log('[callback] 기존 프로필 조회:', { found: !!existingProfile, profileLookupError })
 
-      const { error: upsertError } = await service.from('sparring_profiles').upsert({
+      // plan은 기존 값을 유지하기 위해 신규 사용자일 때만 'free'로 세팅
+      const upsertPayload: Record<string, unknown> = {
         id: user.id,
         email: user.email ?? null,
         full_name: meta.full_name ?? meta.name ?? null,
         avatar_url: meta.avatar_url ?? meta.picture ?? null,
         provider: user.app_metadata?.provider ?? 'google',
-      }, { onConflict: 'id' })
+      }
+      if (!existingProfile) upsertPayload.plan = 'free'
+
+      const { error: upsertError } = await service.from('sparring_profiles').upsert(
+        upsertPayload,
+        { onConflict: 'id' }
+      )
       console.log('[callback] sparring_profiles upsert:', upsertError ?? 'OK')
 
       if (!existingProfile) {
