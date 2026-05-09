@@ -6,16 +6,17 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import DisclaimerModal from '@/components/debate/DisclaimerModal'
 import UsageLimitModal from '@/components/debate/UsageLimitModal'
 import Button from '@/components/ui/Button'
-import type { ValidateResult, DebateConfig, DebaterTone, DebateModel, TTSVoice } from '@/types'
-import { TONE_VOICE_MAP, VOICE_LABELS } from '@/hooks/useTTS'
+import type { ValidateResult, DebateConfig, DebateStyle, DebateModel, TTSVoice } from '@/types'
 
 const ROUND_PRESETS = [5, 7, 10]
 
-const TONE_OPTIONS: { value: DebaterTone; label: string; desc: string }[] = [
-  { value: 'assertive',  label: '단호함',    desc: '공격적·확신에 찬 어조' },
-  { value: 'analytical', label: '분석적',    desc: '데이터·논리 중심' },
-  { value: 'emotional',  label: '감성적',    desc: '공감·스토리 중심' },
-  { value: 'socratic',   label: '소크라테스', desc: '질문으로 모순 유도' },
+const STYLE_OPTIONS: { value: DebateStyle; label: string; desc: string; voice: { red: TTSVoice; blue: TTSVoice } }[] = [
+  { value: 'easy',         label: '쉽게',        desc: '누구나 이해 가능한 표현', voice: { red: 'alloy',   blue: 'nova'    } },
+  { value: 'expert',       label: '전문적',       desc: '전문 용어·심층 논거',    voice: { red: 'onyx',   blue: 'echo'    } },
+  { value: 'short',        label: '짧게',         desc: '3문장 이내 핵심만',       voice: { red: 'echo',   blue: 'alloy'   } },
+  { value: 'bullet',       label: '개조식',       desc: '번호로 구분해 명확하게',  voice: { red: 'echo',   blue: 'alloy'   } },
+  { value: 'storytelling', label: '스토리텔링',   desc: '사례·비유로 감성 설득',   voice: { red: 'fable',  blue: 'shimmer' } },
+  { value: 'socratic',     label: '소크라테스식', desc: '질문으로 모순 유도',      voice: { red: 'shimmer',blue: 'fable'   } },
 ]
 
 const MODEL_OPTIONS: { value: DebateModel; label: string; badge: string; available: boolean }[] = [
@@ -195,8 +196,6 @@ function KnowledgeInput({
   )
 }
 
-const ALL_VOICES: TTSVoice[] = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
-
 function DebaterCustomPanel({
   side,
   color,
@@ -207,11 +206,23 @@ function DebaterCustomPanel({
   side: 'red' | 'blue'
   color: string
   label: string
-  config: { persona?: string; tone?: DebaterTone; knowledge?: string; voice?: TTSVoice; model?: DebateModel }
+  config: { styles?: DebateStyle[]; knowledge?: string; voice?: TTSVoice; model?: DebateModel }
   onChange: (c: typeof config) => void
 }) {
-  const toneKey = config.tone ?? 'default'
-  const suggestedVoice: TTSVoice = (TONE_VOICE_MAP[toneKey] ?? TONE_VOICE_MAP.default)[side]
+  const toggleStyle = (s: DebateStyle) => {
+    const current = config.styles ?? []
+    const isRemoving = current.includes(s)
+    const next = isRemoving ? current.filter((x) => x !== s) : [...current, s]
+
+    // 첫 번째 스타일 기준으로 목소리 자동 설정; 모두 해제 시 기본값으로
+    const firstStyle = !isRemoving ? s : next[0]
+    const styleOpt = firstStyle ? STYLE_OPTIONS.find((o) => o.value === firstStyle) : null
+    const autoVoice: TTSVoice = styleOpt ? styleOpt.voice[side] : (side === 'red' ? 'onyx' : 'nova')
+
+    onChange({ ...config, styles: next.length > 0 ? next : undefined, voice: autoVoice })
+  }
+
+  const currentVoice: TTSVoice = config.voice ?? (side === 'red' ? 'onyx' : 'nova')
 
   return (
     <div className="p-4 rounded-xl border space-y-3 flex flex-col" style={{ borderColor: `${color}33`, backgroundColor: `${color}0a` }}>
@@ -241,78 +252,30 @@ function DebaterCustomPanel({
         </div>
       </div>
 
-      {/* 페르소나 */}
-      <div>
-        <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>페르소나 (선택)</label>
-        <input
-          type="text"
-          value={config.persona ?? ''}
-          onChange={(e) => onChange({ ...config, persona: e.target.value || undefined })}
-          placeholder="예: 현직 변호사, 경제학 교수, 스타트업 창업자..."
-          className="w-full h-9 px-3 rounded-lg border text-xs outline-none focus:border-indigo-500 transition-colors"
-          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-          maxLength={60}
-        />
-      </div>
-
-      {/* 어조 */}
-      <div>
-        <label className="text-xs font-semibold block mb-1.5" style={{ color: 'var(--text-muted)' }}>어조 (선택)</label>
-        <div className="grid grid-cols-2 gap-1.5">
-          {TONE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onChange({ ...config, tone: config.tone === opt.value ? undefined : opt.value })}
-              className="h-9 px-2 rounded-lg border text-xs font-semibold transition-all text-left flex flex-col justify-center"
-              style={{
-                backgroundColor: config.tone === opt.value ? `${color}20` : 'var(--bg-card)',
-                borderColor: config.tone === opt.value ? color : 'var(--border)',
-                color: config.tone === opt.value ? color : 'var(--text-secondary)',
-              }}
-            >
-              <span>{opt.label}</span>
-              <span className="text-[10px] opacity-60">{opt.desc}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 목소리 선택 */}
+      {/* 발언 스타일 + 목소리 통합 */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>TTS 목소리 (선택)</label>
-          {config.voice && config.voice !== suggestedVoice && (
-            <button
-              type="button"
-              onClick={() => onChange({ ...config, voice: undefined })}
-              className="text-[10px] px-1.5 py-0.5 rounded border transition-colors hover:bg-white/5"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
-            >
-              기본으로
-            </button>
-          )}
+          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>발언 스타일 <span className="font-normal opacity-60">(복수 선택)</span></label>
+          <span className="text-[10px] px-1.5 py-0.5 rounded border" style={{ borderColor: `${color}40`, color, backgroundColor: `${color}10` }}>
+            🔊 {currentVoice}
+          </span>
         </div>
-        <div className="grid grid-cols-2 gap-1">
-          {ALL_VOICES.map((v) => {
-            const isSelected = (config.voice ?? suggestedVoice) === v
-            const isSuggested = v === suggestedVoice && !config.voice
+        <div className="grid grid-cols-2 gap-1.5">
+          {STYLE_OPTIONS.map((opt) => {
+            const selected = (config.styles ?? []).includes(opt.value)
             return (
               <button
-                key={v}
+                key={opt.value}
                 type="button"
-                onClick={() => onChange({ ...config, voice: v === suggestedVoice ? undefined : v })}
-                className="px-2 py-1.5 rounded-lg border text-left text-[10px] transition-all"
+                onClick={() => toggleStyle(opt.value)}
+                className="px-2 py-2 rounded-lg border text-left transition-all flex flex-col gap-0.5"
                 style={{
-                  backgroundColor: isSelected ? `${color}20` : 'var(--bg-card)',
-                  borderColor: isSelected ? color : 'var(--border)',
-                  color: isSelected ? color : 'var(--text-secondary)',
+                  backgroundColor: selected ? `${color}20` : 'var(--bg-card)',
+                  borderColor: selected ? color : 'var(--border)',
                 }}
               >
-                <span className="font-bold capitalize">{v}</span>
-                {isSuggested && <span className="ml-1 opacity-60">(추천)</span>}
-                <br />
-                <span className="opacity-60">{VOICE_LABELS[v].split(' — ')[1]}</span>
+                <span className="text-xs font-bold" style={{ color: selected ? color : 'var(--text-primary)' }}>{opt.label}</span>
+                <span className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>{opt.desc}</span>
               </button>
             )
           })}
@@ -563,7 +526,7 @@ export default function NewDebatePage() {
             style={{ color: showAdvanced ? 'var(--accent)' : 'var(--text-muted)' }}
           >
             <span className="transition-transform" style={{ display: 'inline-block', transform: showAdvanced ? 'rotate(90deg)' : 'none' }}>▶</span>
-            {t('고급 설정 (AI 모델 / 페르소나 / 어조 / 지식)', 'Advanced (Model / Persona / Tone / Knowledge)')}
+            {t('고급 설정 (AI 모델 / 발언 스타일 / 지식)', 'Advanced (Model / Style / Knowledge)')}
           </button>
 
           {showAdvanced && (

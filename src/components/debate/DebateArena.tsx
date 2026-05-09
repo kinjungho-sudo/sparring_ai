@@ -10,7 +10,7 @@ import type { Debate, Message } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useDebate } from '@/hooks/useDebate'
 import type { FactCheck } from '@/hooks/useDebate'
-import { useTTS, TONE_VOICE_MAP, TTS_SPEEDS } from '@/hooks/useTTS'
+import { useTTS, TTS_SPEEDS } from '@/hooks/useTTS'
 import type { TTSVoice } from '@/types'
 
 interface DebateArenaProps {
@@ -215,9 +215,7 @@ export default function DebateArena({ debate, initialReport, initialMessages }: 
     for (const msg of finalized) {
       spokenMsgIdsRef.current.add(msg.id)
       const cfg = msg.speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
-      const tone = cfg?.tone ?? 'default'
-      const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
-      const voice = (cfg?.voice ?? voiceMap[msg.speaker as 'red' | 'blue']) as TTSVoice
+      const voice = (cfg?.voice ?? (msg.speaker === 'red' ? 'onyx' : 'nova')) as TTSVoice
       enqueueMsg(msg.id, msg.content, { speaker: msg.speaker as 'red' | 'blue', lang: language, voice })
     }
   }, [messages, ttsEnabled, isSupported, debate.debate_config, language, enqueueMsg])
@@ -405,9 +403,7 @@ export default function DebateArena({ debate, initialReport, initialMessages }: 
                 index={i}
                 onSpeak={isSupported && !msg.isStreaming && (msg.speaker === 'red' || msg.speaker === 'blue') ? (content, speaker) => {
                   const cfg = speaker === 'red' ? debate.debate_config?.red : debate.debate_config?.blue
-                  const tone = cfg?.tone ?? 'default'
-                  const voiceMap = TONE_VOICE_MAP[tone] ?? TONE_VOICE_MAP.default
-                  const voice = cfg?.voice ?? voiceMap[speaker]
+                  const voice = cfg?.voice ?? (speaker === 'red' ? 'onyx' : 'nova')
                   speakMsg(msg.id, content, speaker, { speaker, lang: language, voice })
                 } : undefined}
                 isSpeakingThis={speakingMsgId === msg.id}

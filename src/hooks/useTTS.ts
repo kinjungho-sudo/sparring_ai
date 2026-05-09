@@ -16,23 +16,6 @@ interface QueueItem {
   onDone?: () => void
 }
 
-// 어조별 기본 목소리 (RED/BLUE × tone)
-export const TONE_VOICE_MAP: Record<string, { red: TTSVoice; blue: TTSVoice }> = {
-  assertive:  { red: 'onyx',    blue: 'echo'    },
-  analytical: { red: 'echo',    blue: 'alloy'   },
-  emotional:  { red: 'fable',   blue: 'nova'    },
-  socratic:   { red: 'shimmer', blue: 'fable'   },
-  default:    { red: 'onyx',    blue: 'nova'    },
-}
-
-export const VOICE_LABELS: Record<TTSVoice, string> = {
-  alloy:   'Alloy — 중성·균형',
-  echo:    'Echo — 낮고 차분',
-  fable:   'Fable — 따뜻·이야기',
-  onyx:    'Onyx — 깊고 권위',
-  nova:    'Nova — 밝고 명확',
-  shimmer: 'Shimmer — 부드럽고 사색적',
-}
 
 const QUALITY_KEYWORDS = ['neural', 'premium', 'enhanced', 'natural', 'wavenet', 'studio']
 

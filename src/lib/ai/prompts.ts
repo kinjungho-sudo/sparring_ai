@@ -1,10 +1,12 @@
-import type { Language, DebaterConfig, DebaterTone } from '@/types'
+import type { Language, DebaterConfig, DebateStyle } from '@/types'
 
-const TONE_LABELS: Record<DebaterTone, string> = {
-  assertive:  '단호하고 공격적인 어조로 발언하세요. 약점을 직접 찌르고 확신에 차게 주장합니다.',
-  analytical: '데이터와 논리 중심의 분석적 어조로 발언하세요. 감정 없이 근거를 체계적으로 제시합니다.',
-  emotional:  '감성적이고 공감 중심의 어조로 발언하세요. 사례와 스토리를 활용해 설득합니다.',
-  socratic:   '소크라테스식 어조로 발언하세요. 상대방에게 질문을 던져 모순을 스스로 인식하게 유도합니다.',
+const STYLE_INSTRUCTIONS: Record<DebateStyle, string> = {
+  easy:         '어려운 용어 없이 누구나 이해할 수 있는 쉬운 표현으로 발언하세요.',
+  expert:       '전문 용어와 심층 논거를 활용한 전문가 수준의 발언을 하세요.',
+  short:        '핵심만 담아 3문장 이내로 간결하게 발언하세요.',
+  bullet:       '핵심 포인트를 번호(1. 2. 3.)로 나누어 개조식으로 발언하세요.',
+  storytelling: '실제 사례, 비유, 스토리를 활용해 감성적으로 설득하세요.',
+  socratic:     '상대방에게 날카로운 질문을 던져 스스로 모순을 인식하게 유도하세요.',
 }
 
 interface PromptContext {
@@ -19,8 +21,10 @@ interface PromptContext {
 function buildPersonaBlock(config?: DebaterConfig): string {
   if (!config) return ''
   const lines: string[] = []
-  if (config.persona) lines.push(`- 페르소나: ${config.persona}`)
-  if (config.tone) lines.push(`- 어조: ${TONE_LABELS[config.tone]}`)
+  if (config.styles && config.styles.length > 0) {
+    const styleLines = config.styles.map((s) => `  - ${STYLE_INSTRUCTIONS[s]}`).join('\n')
+    lines.push(`- 발언 스타일 (아래 지침을 모두 반영하세요):\n${styleLines}`)
+  }
   if (config.knowledge) lines.push(`- 지식/지침: 아래 내용을 논거로 적극 활용하세요.\n  "${config.knowledge}"`)
   if (lines.length === 0) return ''
   return `\n[커스텀 설정]\n${lines.join('\n')}\n`

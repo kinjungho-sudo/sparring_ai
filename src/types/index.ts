@@ -86,13 +86,12 @@ export interface ValidateResult {
   message: string
 }
 
-export type DebaterTone = 'assertive' | 'analytical' | 'emotional' | 'socratic'
+export type DebateStyle = 'easy' | 'expert' | 'short' | 'bullet' | 'storytelling' | 'socratic'
 export type DebateModel = 'claude-sonnet-4-6' | 'gemini-2-flash' | 'gpt-4o-mini'
 export type TTSVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
 
 export interface DebaterConfig {
-  persona?: string
-  tone?: DebaterTone
+  styles?: DebateStyle[]
   knowledge?: string
   voice?: TTSVoice
   model?: DebateModel
