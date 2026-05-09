@@ -10,7 +10,7 @@ import type { Debate, Message } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useDebate } from '@/hooks/useDebate'
 import type { FactCheck } from '@/hooks/useDebate'
-import { useTTS, TONE_VOICE_MAP } from '@/hooks/useTTS'
+import { useTTS, TONE_VOICE_MAP, TTS_SPEEDS } from '@/hooks/useTTS'
 import type { TTSVoice } from '@/types'
 
 interface DebateArenaProps {
@@ -138,7 +138,7 @@ function UserCommentModal({ onSend, onClose, language }: { onSend: (msg: string)
 export default function DebateArena({ debate, initialReport, initialMessages }: DebateArenaProps) {
   const { language, t } = useLanguage()
   const { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, initDebate, runRound, adjustTotalRounds, resetRoundError, sendHostIntervention } = useDebate()
-  const { speakMsg, enqueueMsg, stop, isSupported, speakingMsgId, ttsEnabled, setTtsEnabled } = useTTS()
+  const { speakMsg, enqueueMsg, stop, isSupported, speakingMsgId, ttsEnabled, setTtsEnabled, speed, setSpeed } = useTTS()
   const scrollRef = useRef<HTMLDivElement>(null)
   const initialized = useRef(false)
   const [showSampleEnd, setShowSampleEnd] = useState(false)
@@ -155,11 +155,17 @@ export default function DebateArena({ debate, initialReport, initialMessages }: 
   // 사용자 메모 목록 (AI에 전달 안 됨, 로컬만)
   const [userMemos, setUserMemos] = useState<Array<{ id: string; round: number; text: string }>>([])
 
-  // 토론 페이지: body 클래스 추가로 푸터/헤더 nav 숨김
+  // 토론 페이지: body 클래스 추가로 푸터/헤더 nav 숨김 + 이탈 시 TTS 중단
   useEffect(() => {
     document.body.classList.add('debate-active')
-    return () => document.body.classList.remove('debate-active')
-  }, [])
+    const handleUnload = () => stop()
+    window.addEventListener('beforeunload', handleUnload)
+    return () => {
+      document.body.classList.remove('debate-active')
+      window.removeEventListener('beforeunload', handleUnload)
+      stop()
+    }
+  }, [stop])
 
   // 토론 진행 중 여부를 localStorage에 저장 (재접속 감지용)
   useEffect(() => {
@@ -271,20 +277,38 @@ export default function DebateArena({ debate, initialReport, initialMessages }: 
           <RoundIndicator currentRound={currentRound} totalRounds={totalRounds} isRunning={isRunning} />
         </div>
 
-        {/* TTS 토글 */}
+        {/* TTS 토글 + 속도 조절 */}
         {isSupported && (
-          <button
-            onClick={handleToggleTTS}
-            className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg border transition-all"
-            style={{
-              borderColor: ttsEnabled ? 'rgba(99,102,241,0.5)' : 'var(--border)',
-              color: ttsEnabled ? 'var(--accent)' : 'var(--text-muted)',
-              backgroundColor: ttsEnabled ? 'rgba(99,102,241,0.08)' : 'transparent',
-            }}
-            title={ttsEnabled ? '음성 끄기' : '음성 켜기'}
-          >
-            {ttsEnabled ? '🔊' : '🔇'}
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={handleToggleTTS}
+              className="text-xs px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{
+                borderColor: ttsEnabled ? 'rgba(99,102,241,0.5)' : 'var(--border)',
+                color: ttsEnabled ? 'var(--accent)' : 'var(--text-muted)',
+                backgroundColor: ttsEnabled ? 'rgba(99,102,241,0.08)' : 'transparent',
+              }}
+              title={ttsEnabled ? '음성 끄기' : '음성 켜기'}
+            >
+              {ttsEnabled ? '🔊' : '🔇'}
+            </button>
+            {ttsEnabled && (
+              <select
+                value={speed}
+                onChange={(e) => setSpeed(Number(e.target.value) as typeof speed)}
+                className="text-[11px] font-bold px-1.5 py-1.5 rounded-lg border cursor-pointer outline-none"
+                style={{
+                  borderColor: 'rgba(99,102,241,0.3)',
+                  color: 'var(--accent)',
+                  backgroundColor: 'rgba(99,102,241,0.08)',
+                }}
+              >
+                {TTS_SPEEDS.map((s) => (
+                  <option key={s} value={s}>{s}×</option>
+                ))}
+              </select>
+            )}
+          </div>
         )}
 
         {/* 라운드 조정 버튼 */}
