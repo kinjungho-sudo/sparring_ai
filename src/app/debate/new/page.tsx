@@ -210,16 +210,10 @@ function DebaterCustomPanel({
   onChange: (c: typeof config) => void
 }) {
   const toggleStyle = (s: DebateStyle) => {
-    const current = config.styles ?? []
-    const isRemoving = current.includes(s)
-    const next = isRemoving ? current.filter((x) => x !== s) : [...current, s]
-
-    // 첫 번째 스타일 기준으로 목소리 자동 설정; 모두 해제 시 기본값으로
-    const firstStyle = !isRemoving ? s : next[0]
-    const styleOpt = firstStyle ? STYLE_OPTIONS.find((o) => o.value === firstStyle) : null
+    const isRemoving = (config.styles ?? []).includes(s)
+    const styleOpt = !isRemoving ? STYLE_OPTIONS.find((o) => o.value === s) : null
     const autoVoice: TTSVoice = styleOpt ? styleOpt.voice[side] : (side === 'red' ? 'onyx' : 'nova')
-
-    onChange({ ...config, styles: next.length > 0 ? next : undefined, voice: autoVoice })
+    onChange({ ...config, styles: isRemoving ? undefined : [s], voice: autoVoice })
   }
 
   const currentVoice: TTSVoice = config.voice ?? (side === 'red' ? 'onyx' : 'nova')
@@ -255,7 +249,7 @@ function DebaterCustomPanel({
       {/* 발언 스타일 + 목소리 통합 */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>발언 스타일 <span className="font-normal opacity-60">(복수 선택)</span></label>
+          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>발언 스타일</label>
           <span className="text-[10px] px-1.5 py-0.5 rounded border" style={{ borderColor: `${color}40`, color, backgroundColor: `${color}10` }}>
             🔊 {currentVoice}
           </span>

@@ -133,7 +133,7 @@ function AgreeContent() {
               </Link>
             </label>
 
-            {/* 이메일 알림 (선택) */}
+            {/* 마케팅 동의 (선택) */}
             <label className="flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors hover:bg-white/5"
               style={{ borderColor: emailMarketing ? 'rgba(99,102,241,0.4)' : 'var(--border)' }}>
               <input
@@ -143,7 +143,7 @@ function AgreeContent() {
                 className="w-4 h-4 accent-indigo-500 shrink-0"
               />
               <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
-                이메일 알림 수신
+                마케팅 정보 수신 동의
                 <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>선택</span>
               </span>
             </label>

@@ -23,7 +23,7 @@ function buildPersonaBlock(config?: DebaterConfig): string {
   const lines: string[] = []
   if (config.styles && config.styles.length > 0) {
     const styleLines = config.styles.map((s) => `  - ${STYLE_INSTRUCTIONS[s]}`).join('\n')
-    lines.push(`- 발언 스타일 (아래 지침을 모두 반영하세요):\n${styleLines}`)
+    lines.push(`- 발언 스타일:\n${styleLines}`)
   }
   if (config.knowledge) lines.push(`- 지식/지침: 아래 내용을 논거로 적극 활용하세요.\n  "${config.knowledge}"`)
   if (lines.length === 0) return ''
