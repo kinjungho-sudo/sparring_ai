@@ -23,18 +23,22 @@ export async function GET(request: Request) {
       const service = await createServiceClient()
       const meta = user.user_metadata ?? {}
 
-      const { data: existingProfile, error: profileLookupError } = await service
-        .from('sparring_profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single()
-      console.log('[callback] 기존 프로필 조회:', { found: !!existingProfile, profileLookupError })
+      // 이름 등록 여부 + 약관 동의 완료 여부를 함께 확인
+      const [profileResult, consentResult] = await Promise.all([
+        service.from('sparring_profiles').select('id, full_name').eq('id', user.id).single(),
+        service.from('sparring_consents').select('user_id').eq('user_id', user.id).single(),
+      ])
+      const existingProfile = profileResult.data
+      const hasName = !!(existingProfile?.full_name?.trim())
+      const hasConsent = !!consentResult.data
+      console.log('[callback] 기존 프로필 조회:', { found: !!existingProfile, hasName, hasConsent })
 
       // plan은 기존 값을 유지하기 위해 신규 사용자일 때만 'free'로 세팅
+      // full_name은 이미 등록된 이름이 있으면 덮어쓰지 않음
       const upsertPayload: Record<string, unknown> = {
         id: user.id,
         email: user.email ?? null,
-        full_name: meta.full_name ?? meta.name ?? null,
+        full_name: hasName ? existingProfile!.full_name : (meta.full_name ?? meta.name ?? null),
         avatar_url: meta.avatar_url ?? meta.picture ?? null,
         provider: user.app_metadata?.provider ?? 'google',
       }
@@ -46,9 +50,9 @@ export async function GET(request: Request) {
       )
       console.log('[callback] sparring_profiles upsert:', upsertError ?? 'OK')
 
-      if (!existingProfile) {
-        // 신규 사용자 — 로그인 탭으로 왔어도 약관 동의 필요
-        console.log('[callback] 신규 사용자 → /auth/agree 리다이렉트')
+      // 이름 또는 약관 동의가 없으면 agree 페이지로
+      if (!hasName || !hasConsent) {
+        console.log('[callback] 가입 미완료(이름 또는 동의 없음) → /auth/agree 리다이렉트')
         return NextResponse.redirect(`${origin}/auth/agree?next=${encodeURIComponent(next)}`)
       }
 

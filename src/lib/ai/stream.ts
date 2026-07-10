@@ -10,9 +10,6 @@ export async function streamText(
   maxTokens: number,
   onChunk: (text: string) => void
 ): Promise<{ tokenCount: number }> {
-  if (model === 'gemini-2-flash') {
-    return streamGemini(prompt, maxTokens, onChunk)
-  }
   if (model === 'gpt-4o-mini') {
     return streamOpenAI(prompt, maxTokens, onChunk)
   }
@@ -25,9 +22,6 @@ export async function generateText(
   prompt: string,
   maxTokens: number
 ): Promise<string> {
-  if (model === 'gemini-2-flash') {
-    return generateGemini(prompt, maxTokens)
-  }
   if (model === 'gpt-4o-mini') {
     return generateOpenAI(prompt, maxTokens)
   }
@@ -37,7 +31,7 @@ export async function generateText(
 // ── Claude ──────────────────────────────────────────────────────────────────
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const CLAUDE_MODEL = 'claude-sonnet-4-6'
+const CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
 
 async function streamClaude(prompt: string, maxTokens: number, onChunk: (text: string) => void): Promise<{ tokenCount: number }> {
   const stream = await anthropic.messages.stream({
@@ -64,73 +58,6 @@ async function generateClaude(prompt: string, maxTokens: number): Promise<string
     messages: [{ role: 'user', content: prompt }],
   })
   return msg.content[0].type === 'text' ? msg.content[0].text : ''
-}
-
-// ── Gemini ───────────────────────────────────────────────────────────────────
-
-async function streamGemini(prompt: string, maxTokens: number, onChunk: (text: string) => void): Promise<{ tokenCount: number }> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY not set')
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${apiKey}`
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: maxTokens },
-    }),
-  })
-
-  if (!resp.ok) {
-    const err = await resp.text()
-    throw new Error(`Gemini API error: ${resp.status} ${err}`)
-  }
-
-  const reader = resp.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let tokenCount = 0
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      try {
-        const data = JSON.parse(line.slice(6))
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-        if (text) onChunk(text)
-        if (data.usageMetadata?.candidatesTokenCount) {
-          tokenCount = data.usageMetadata.candidatesTokenCount
-        }
-      } catch { /* skip */ }
-    }
-  }
-
-  return { tokenCount }
-}
-
-async function generateGemini(prompt: string, maxTokens: number): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY not set')
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: maxTokens },
-    }),
-  })
-
-  if (!resp.ok) throw new Error(`Gemini API error: ${resp.status}`)
-  const data = await resp.json()
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
 }
 
 // ── OpenAI ───────────────────────────────────────────────────────────────────

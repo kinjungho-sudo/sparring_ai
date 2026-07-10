@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface ShareButtonsProps {
   debateId: string
@@ -10,12 +11,13 @@ interface ShareButtonsProps {
 }
 
 export default function ShareButtons({ debateId, topic, onMakePublic, isPublic }: ShareButtonsProps) {
+  const { t } = useLanguage()
   const [copied, setCopied] = useState(false)
   const [shared, setShared] = useState(isPublic ?? false)
   const [loading, setLoading] = useState(false)
 
   const getUrl = () => `${window.location.origin}/debate/${debateId}`
-  const shareText = `"${topic}" — AI 찬반 토론 결과를 확인해보세요.`
+  const shareText = t(`"${topic}" — AI 찬반 토론 결과를 확인해보세요.`, `"${topic}" — Check out this AI debate result.`)
 
   const ensurePublic = async () => {
     if (shared || loading) return
@@ -37,7 +39,7 @@ export default function ShareButtons({ debateId, topic, onMakePublic, isPublic }
     const url = getUrl()
     if (navigator.share) {
       try {
-        await navigator.share({ title: `AI 토론: ${topic}`, text: shareText, url })
+        await navigator.share({ title: t(`AI 토론: ${topic}`, `AI Debate: ${topic}`), text: shareText, url })
       } catch {}
     } else {
       await copyLink()
@@ -69,7 +71,7 @@ export default function ShareButtons({ debateId, topic, onMakePublic, isPublic }
     return (
       <div className="flex gap-2 flex-wrap">
         <div className="h-9 px-4 rounded-xl border flex items-center text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-          공유 준비 중...
+          {t('공유 준비 중...', 'Preparing to share...')}
         </div>
       </div>
     )
@@ -86,7 +88,7 @@ export default function ShareButtons({ debateId, topic, onMakePublic, isPublic }
           color: copied ? '#22c55e' : 'var(--text-secondary)',
         }}
       >
-        {copied ? '✓ 복사됨' : '🔗 링크 복사'}
+        {copied ? t('✓ 복사됨', '✓ Copied') : t('🔗 링크 복사', '🔗 Copy link')}
       </button>
 
       {/* X(트위터) 공유 */}
@@ -108,7 +110,7 @@ export default function ShareButtons({ debateId, topic, onMakePublic, isPublic }
           className="h-9 px-4 rounded-xl border font-semibold text-xs transition-all flex items-center gap-1.5 hover:bg-white/5"
           style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
         >
-          ↗ 공유
+          {t('↗ 공유', '↗ Share')}
         </button>
       )}
     </div>

@@ -7,7 +7,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 type State = 'idle' | 'loading' | 'done' | 'already' | 'error'
 
 export default function WaitlistSection() {
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const [email, setEmail] = useState('')
   const [state, setState] = useState<State>('idle')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -42,7 +42,7 @@ export default function WaitlistSection() {
   const isSuccess = state === 'done' || state === 'already'
 
   return (
-    <section className="py-24 px-6" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <section className="py-12 sm:py-24 px-4 sm:px-6" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="max-w-xl mx-auto text-center">
 
         {/* 상단 뱃지 */}
@@ -56,7 +56,11 @@ export default function WaitlistSection() {
 
         <h2 className="font-black mb-3"
           style={{ fontSize: 'clamp(26px, 3.5vw, 44px)', color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>
-          {t('정식 오픈 소식, 가장 먼저 받아보세요', 'Be first to know when we launch')}
+          {language === 'ko' ? (
+            <>정식 오픈 소식,<br />가장 먼저 받아보세요</>
+          ) : (
+            'Be first to know when we launch'
+          )}
         </h2>
         <p className="text-sm mb-8 max-w-sm mx-auto" style={{ color: 'var(--text-secondary)', lineHeight: 1.75 }}>
           {t(

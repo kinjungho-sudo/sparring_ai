@@ -61,10 +61,8 @@ export default async function DebatePage({ params }: Props) {
   // 접근 권한: 공개 토론 or 본인 토론 or 샘플
   const canAccess = debate.is_public || debate.is_sample || (user && debate.user_id === user.id)
   if (!canAccess) {
-    if (!user) {
-      redirect(`/login?redirect=/debate/${id}`)
-    }
-    redirect('/')
+    // 비로그인이거나 세션 만료 시 홈 대신 로그인 페이지로 — 완료 후 세션 만료로 튕기는 현상 방지
+    redirect(`/login?redirect=/debate/${id}`)
   }
 
   const isFinished = debate.status === 'completed' || debate.status === 'early_end'

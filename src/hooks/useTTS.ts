@@ -52,27 +52,36 @@ function pickBrowserVoice(voices: SpeechSynthesisVoice[], lang: string, preferIn
 export const TTS_SPEEDS = [1.0, 1.25, 1.5, 1.75, 2.0] as const
 export type TTSSpeed = typeof TTS_SPEEDS[number]
 
+function loadPref<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const v = localStorage.getItem(key)
+    return v !== null ? (JSON.parse(v) as T) : fallback
+  } catch { return fallback }
+}
+
 export function useTTS() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
-  const [ttsEnabled, setTtsEnabled] = useState(false)
+  const [ttsEnabled, setTtsEnabled] = useState(() => loadPref('tts_enabled', false))
   const [isSupported, setIsSupported] = useState(false)
-  const [speed, setSpeed] = useState<TTSSpeed>(1.0)
+  const [speed, setSpeed] = useState<TTSSpeed>(() => loadPref('tts_speed', 1.0) as TTSSpeed)
   const [ttsSpeaker, setTtsSpeaker] = useState<'red' | 'blue' | null>(null)
-  const [volume, setVolume] = useState(1.0)
+  const [volume, setVolume] = useState(() => loadPref('tts_volume', 1.0))
   const [isMuted, setIsMuted] = useState(false)
 
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const openaiAvailableRef = useRef<boolean | null>(null)
-  const ttsEnabledRef = useRef(false)
-  const speedRef = useRef<TTSSpeed>(1.0)
-  const volumeRef = useRef(1.0)
+  const ttsEnabledRef = useRef(loadPref('tts_enabled', false))
+  const speedRef = useRef<TTSSpeed>(loadPref('tts_speed', 1.0) as TTSSpeed)
+  const volumeRef = useRef(loadPref('tts_volume', 1.0))
   const isMutedRef = useRef(false)
 
   const setSpeedSync = useCallback((s: TTSSpeed) => {
     speedRef.current = s
     setSpeed(s)
+    if (typeof window !== 'undefined') localStorage.setItem('tts_speed', JSON.stringify(s))
     if (audioRef.current) audioRef.current.playbackRate = s
   }, [])
 
@@ -80,6 +89,7 @@ export function useTTS() {
     const clamped = Math.max(0, Math.min(1, v))
     volumeRef.current = clamped
     setVolume(clamped)
+    if (typeof window !== 'undefined') localStorage.setItem('tts_volume', JSON.stringify(clamped))
     if (audioRef.current) audioRef.current.volume = isMutedRef.current ? 0 : clamped
   }, [])
 
@@ -123,6 +133,7 @@ export function useTTS() {
   const setTtsEnabledSync = useCallback((enabled: boolean) => {
     ttsEnabledRef.current = enabled
     setTtsEnabled(enabled)
+    if (typeof window !== 'undefined') localStorage.setItem('tts_enabled', JSON.stringify(enabled))
   }, [])
 
   const playSingle = useCallback(async (text: string, options: TTSOptions): Promise<void> => {
@@ -375,8 +386,9 @@ export function useTTS() {
     playSingle(content, options).then(() => setSpeakingMsgId(null))
   }, [playSingle, stop])
 
-  // 자동 TTS: ttsEnabled 무관, 큐에 순차 추가 (stop() 없이) — processQueue가 msgId 기반으로 speakingMsgId 관리
+  // 자동 TTS: ttsEnabled일 때만 큐에 순차 추가 (stop() 없이) — processQueue가 msgId 기반으로 speakingMsgId 관리
   const enqueueMsg = useCallback((msgId: string, text: string, options: TTSOptions) => {
+    if (!ttsEnabledRef.current) return
     const cleaned = cleanForTTS(text)
     if (!cleaned) return
     queueRef.current.push({ text: cleaned, options, msgId })

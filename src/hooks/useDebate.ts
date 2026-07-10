@@ -34,8 +34,11 @@ interface UseDebateReturn {
   isComplete: boolean
   roundErrorCount: number
   reportContent: ReportData | null
+  reportFailed: boolean
   debateId: string | null
+  pausedAfterRed: boolean
   runRound: (debate: Debate, language: Language, overrideTotalRounds?: number) => Promise<void>
+  resumeBlue: () => void
   initDebate: (debate: Debate, preloadedMessages?: Message[]) => void
   adjustTotalRounds: (n: number) => void
   resetRoundError: () => void
@@ -91,12 +94,15 @@ export function useDebate(): UseDebateReturn {
   const [isComplete, setIsComplete] = useState(false)
   const [roundErrorCount, setRoundErrorCount] = useState(0)
   const [reportContent, setReportContent] = useState<ReportData | null>(null)
+  const [reportFailed, setReportFailed] = useState(false)
   const [debateId, setDebateId] = useState<string | null>(null)
+  const [pausedAfterRed, setPausedAfterRed] = useState(false)
   const messagesRef = useRef<LocalMessage[]>([])
   const currentRoundRef = useRef(1)
   const totalRoundsRef = useRef(7)
   const isRunningRef = useRef(false)
   const roundErrorCountRef = useRef(0)
+  const resumeBlueRef = useRef<(() => void) | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const runRoundRef = useRef<any>(null)
 
@@ -256,6 +262,13 @@ export function useDebate(): UseDebateReturn {
     }
   }, [])
 
+  const resumeBlue = useCallback(() => {
+    if (resumeBlueRef.current) {
+      resumeBlueRef.current()
+      resumeBlueRef.current = null
+    }
+  }, [])
+
   const isCompleteRef = useRef(false)
 
   const runRound = useCallback(async (debate: Debate, language: Language, overrideTotalRounds?: number) => {
@@ -271,7 +284,7 @@ export function useDebate(): UseDebateReturn {
     const history = messagesRef.current.map((m) => ({ speaker: m.speaker, content: m.content }))
 
     const cfg = debate.debate_config
-    const sharedModel = cfg?.model ?? 'claude-sonnet-4-6'
+    const sharedModel = cfg?.model ?? 'claude-haiku-4-5-20251001'
     const baseBody = {
       debate_id: debate.id,
       topic: debate.topic,
@@ -305,6 +318,20 @@ export function useDebate(): UseDebateReturn {
       addStreamingMessage(redId, 'red', round, isFinalRound)
       const { tokenCount: redTokens } = await streamAI('/api/debate/red', { ...baseBody, model: baseBody.red_model }, (text) => updateStreamingMessage(redId, text))
       finalizeMessage(redId, redTokens)
+
+      // RED 발언 완료 후 사용자가 읽을 시간을 주기 위해 멈춤
+      isRunningRef.current = false
+      setIsRunning(false)
+      setPausedAfterRed(true)
+
+      // 사용자가 resumeBlue()를 호출할 때까지 대기
+      await new Promise<void>((resolve) => {
+        resumeBlueRef.current = resolve
+      })
+
+      setPausedAfterRed(false)
+      isRunningRef.current = true
+      setIsRunning(true)
 
       const blueId = `blue-${round}`
       addStreamingMessage(blueId, 'blue', round, isFinalRound)
@@ -394,7 +421,7 @@ export function useDebate(): UseDebateReturn {
             }
           }
         } catch {
-          // report 실패해도 토론은 종료 처리
+          setReportFailed(true)
         } finally {
           if (debate.id) {
             fetch('/api/debate/save-message', {
@@ -423,5 +450,5 @@ export function useDebate(): UseDebateReturn {
 
   runRoundRef.current = runRound
 
-  return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, debateId, runRound, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
+  return { messages, currentRound, totalRounds, isRunning, isComplete, roundErrorCount, reportContent, reportFailed, debateId, pausedAfterRed, runRound, resumeBlue, initDebate, adjustTotalRounds, resetRoundError, sendHostIntervention }
 }

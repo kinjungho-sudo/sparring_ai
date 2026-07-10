@@ -10,6 +10,7 @@ interface Profile {
   full_name: string | null
   avatar_url: string | null
   provider: string | null
+  plan: string | null
   created_at: string
 }
 
@@ -44,7 +45,7 @@ export default async function CustomersPage() {
     { data: usages },
     { data: debates },
   ] = await Promise.all([
-    supabase.from('sparring_profiles').select('id, email, full_name, avatar_url, provider, created_at').order('created_at', { ascending: false }),
+    supabase.from('sparring_profiles').select('id, email, full_name, avatar_url, provider, plan, created_at').order('created_at', { ascending: false }),
     supabase.from('sparring_consents').select('user_id, terms_agreed, privacy_agreed, agreed_at'),
     supabase.from('sparring_usage').select('user_id, date, count'),
     supabase.from('sparring_debates').select('user_id, created_at, status').not('user_id', 'is', null),
@@ -109,7 +110,7 @@ export default async function CustomersPage() {
         <table className="w-full text-sm min-w-[700px]">
           <thead style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <tr>
-              {['이름 / 이메일', '가입일', '약관동의', '총 토론', '완료', '누적 사용', '마지막 활동'].map((h) => (
+              {['이름 / 이메일', '플랜', '가입일', '약관동의', '총 토론', '완료', '누적 사용', '마지막 활동'].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{h}</th>
               ))}
             </tr>
@@ -129,6 +130,16 @@ export default async function CustomersPage() {
                     <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {profile.email ?? '-'}
                     </p>
+                  </td>
+                  {/* 플랜 */}
+                  <td className="px-4 py-3">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={
+                      profile.plan === 'pro'
+                        ? { backgroundColor: 'rgba(99,102,241,0.15)', color: '#818cf8' }
+                        : { backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }
+                    }>
+                      {profile.plan ?? 'free'}
+                    </span>
                   </td>
                   {/* 가입일 */}
                   <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>

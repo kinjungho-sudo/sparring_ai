@@ -40,12 +40,12 @@ export default function Header() {
 
   return (
     <header
-      className="sticky top-0 z-50 flex items-center justify-between px-6 h-16 border-b"
+      className="sticky top-0 z-50 flex items-center justify-between px-3 sm:px-6 h-16 border-b"
       style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}
     >
-      <div className="flex items-center gap-6">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+      <div className="flex items-center gap-4 min-w-0">
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <span className="text-base sm:text-lg font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
             ⚡ Sparring AI
           </span>
           <span className="text-xs font-black px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(99,102,241,0.15)', color: 'var(--accent)' }}>
@@ -53,18 +53,18 @@ export default function Header() {
           </span>
         </Link>
         <nav className="hidden md:flex items-center gap-5">
-          <Link href="/#how-it-works" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>서비스 소개</Link>
-          <Link href="/#pricing" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>요금제</Link>
+          <Link href="/#how-it-works" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>{t('서비스 소개', 'How it works')}</Link>
+          <Link href="/#pricing" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>{t('요금제', 'Pricing')}</Link>
           <Link href="/#faq" className="text-xs font-semibold transition-colors hover:opacity-100" style={{ color: 'var(--text-muted)' }}>FAQ</Link>
         </nav>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {/* 언어 선택 */}
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value as 'ko' | 'en')}
-          className="text-xs font-bold px-2 py-1.5 rounded-lg border transition-colors cursor-pointer outline-none"
+          className="text-xs font-bold px-1.5 sm:px-2 py-1.5 rounded-lg border transition-colors cursor-pointer outline-none"
           style={{
             color: 'var(--text-secondary)',
             borderColor: 'var(--border)',
@@ -78,14 +78,20 @@ export default function Header() {
         {/* 다크/라이트 모드 토글 */}
         <button
           onClick={toggleTheme}
-          className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
+          className="text-xs font-bold px-2 sm:px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
           style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
         >
           {isDark ? 'Light' : 'Dark'}
         </button>
 
         {user ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Link
+              href="/new"
+              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            >
+              {t('새로 시작', 'New')}
+            </Link>
             <Link
               href="/debate/history"
               className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
@@ -98,17 +104,17 @@ export default function Header() {
             </Link>
             <Link
               href="/account"
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
+              className="flex items-center gap-1.5 text-xs font-semibold px-2 sm:px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
               style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
               </svg>
-              {t('마이페이지', 'My page')}
+              <span className="hidden sm:inline">{t('마이페이지', 'My page')}</span>
             </Link>
             <button
               onClick={handleSignOut}
-              className="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
+              className="hidden sm:block text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/5"
               style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
             >
               {t('로그아웃', 'Sign out')}
@@ -116,8 +122,8 @@ export default function Header() {
           </div>
         ) : (
           <Link
-            href="/login"
-            className="text-sm font-bold px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            href="/new"
+            className="text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
           >
             {t('시작하기', 'Get started')}
           </Link>

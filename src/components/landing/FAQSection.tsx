@@ -79,9 +79,9 @@ export default function FAQSection() {
   const [openIdx, setOpenIdx] = useState<number | null>(null)
 
   return (
-    <section className="py-24 px-6" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <section className="py-12 sm:py-24 px-4 sm:px-6" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>FAQ</p>
           <h2
             className="font-black"

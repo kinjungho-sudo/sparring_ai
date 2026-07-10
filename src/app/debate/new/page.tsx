@@ -10,19 +10,21 @@ import type { ValidateResult, DebateConfig, DebateStyle, DebateModel, TTSVoice }
 
 const ROUND_PRESETS = [5, 7, 10]
 
-const STYLE_OPTIONS: { value: DebateStyle; label: string; desc: string; voice: { red: TTSVoice; blue: TTSVoice } }[] = [
-  { value: 'easy',         label: '쉽게',        desc: '누구나 이해 가능한 표현', voice: { red: 'alloy',   blue: 'nova'    } },
-  { value: 'expert',       label: '전문적',       desc: '전문 용어·심층 논거',    voice: { red: 'onyx',   blue: 'echo'    } },
-  { value: 'short',        label: '짧게',         desc: '3문장 이내 핵심만',       voice: { red: 'echo',   blue: 'alloy'   } },
-  { value: 'bullet',       label: '개조식',       desc: '번호로 구분해 명확하게',  voice: { red: 'echo',   blue: 'alloy'   } },
-  { value: 'storytelling', label: '스토리텔링',   desc: '사례·비유로 감성 설득',   voice: { red: 'fable',  blue: 'shimmer' } },
-  { value: 'socratic',     label: '소크라테스식', desc: '질문으로 모순 유도',      voice: { red: 'shimmer',blue: 'fable'   } },
+type StyleOption = { value: DebateStyle; labelKo: string; labelEn: string; descKo: string; descEn: string; voice: { red: TTSVoice; blue: TTSVoice } }
+
+const STYLE_OPTIONS: StyleOption[] = [
+  { value: 'easy',         labelKo: '쉽게',        labelEn: 'Simple',      descKo: '누구나 이해 가능한 표현', descEn: 'Plain language anyone can follow',  voice: { red: 'alloy',   blue: 'nova'    } },
+  { value: 'casual',       labelKo: '친근하게',     labelEn: 'Casual',      descKo: '친구처럼 편안한 구어체',  descEn: 'Friendly, conversational tone',     voice: { red: 'nova',    blue: 'alloy'   } },
+  { value: 'expert',       labelKo: '전문적',       labelEn: 'Expert',      descKo: '전문 용어·심층 논거',     descEn: 'Technical terms, deep arguments',   voice: { red: 'onyx',    blue: 'echo'    } },
+  { value: 'short',        labelKo: '짧게',         labelEn: 'Concise',     descKo: '3문장 이내 핵심만',        descEn: 'Core point in 3 sentences',         voice: { red: 'echo',    blue: 'alloy'   } },
+  { value: 'bullet',       labelKo: '개조식',       labelEn: 'Bullet',      descKo: '번호로 구분해 명확하게',   descEn: 'Numbered points for clarity',       voice: { red: 'echo',    blue: 'alloy'   } },
+  { value: 'storytelling', labelKo: '스토리텔링',   labelEn: 'Storytelling',descKo: '사례·비유로 감성 설득',    descEn: 'Examples & analogies to persuade',  voice: { red: 'fable',   blue: 'shimmer' } },
+  { value: 'socratic',     labelKo: '소크라테스식', labelEn: 'Socratic',    descKo: '질문으로 논지 전달',       descEn: 'Questions to drive the argument',   voice: { red: 'shimmer', blue: 'fable'   } },
 ]
 
 const MODEL_OPTIONS: { value: DebateModel; label: string; badge: string; available: boolean }[] = [
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', badge: 'Anthropic', available: true },
-  { value: 'gemini-2-flash',    label: 'Gemini 2.0 Flash',  badge: 'Google',    available: true },
-  { value: 'gpt-4o-mini',       label: 'GPT-4o mini',       badge: 'OpenAI',    available: true },
+  { value: 'claude-haiku-4-5-20251001', label: 'Claude',   badge: 'Anthropic', available: true },
+  { value: 'gpt-4o-mini',               label: 'ChatGPT',  badge: 'OpenAI',    available: true },
 ]
 
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'txt']
@@ -44,6 +46,7 @@ async function extractTextFromFile(file: File): Promise<string> {
 }
 
 function TopicFileAttach({ onExtract }: { onExtract: (text: string) => void }) {
+  const { t } = useLanguage()
   const fileRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -51,7 +54,7 @@ function TopicFileAttach({ onExtract }: { onExtract: (text: string) => void }) {
   const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      alert('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.')
+      alert(t('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.', 'Only PDF, DOCX, and TXT files are supported.'))
       return
     }
     setIsLoading(true)
@@ -93,7 +96,7 @@ function TopicFileAttach({ onExtract }: { onExtract: (text: string) => void }) {
           pointerEvents: isLoading ? 'none' : 'auto',
         }}
       >
-        {isLoading ? '읽는 중...' : isDragging ? '놓으세요' : '📎 자료 첨부'}
+        {isLoading ? t('읽는 중...', 'Reading...') : isDragging ? t('놓으세요', 'Drop here') : t('📎 자료 첨부', '📎 Attach')}
       </div>
       <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleFile} />
     </>
@@ -111,6 +114,7 @@ function KnowledgeInput({
   color: string
   side: 'red' | 'blue'
 }) {
+  const { t } = useLanguage()
   const fileRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -118,7 +122,7 @@ function KnowledgeInput({
   const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      alert('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.')
+      alert(t('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.', 'Only PDF, DOCX, and TXT files are supported.'))
       return
     }
     setIsLoading(true)
@@ -147,7 +151,7 @@ function KnowledgeInput({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>지식 / 지침 (선택)</label>
+        <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{t('지식 / 지침 (선택)', 'Knowledge / Instructions (optional)')}</label>
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -155,7 +159,7 @@ function KnowledgeInput({
           className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors hover:bg-white/5 disabled:opacity-50"
           style={{ borderColor: `${color}44`, color }}
         >
-          {isLoading ? '읽는 중...' : '📎 파일 첨부'}
+          {isLoading ? t('읽는 중...', 'Reading...') : t('📎 파일 첨부', '📎 Attach file')}
         </button>
         <input
           ref={fileRef}
@@ -178,14 +182,14 @@ function KnowledgeInput({
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={'논거로 쓸 지식, 데이터, 지침을 입력하거나\n파일을 드래그하거나 위 버튼으로 첨부하세요 (PDF, DOCX, TXT)'}
+          placeholder={t('논거로 쓸 지식, 데이터, 지침을 입력하거나\n파일을 드래그하거나 위 버튼으로 첨부하세요 (PDF, DOCX, TXT)', 'Enter knowledge, data, or instructions for this side\nOr drag & drop a file (PDF, DOCX, TXT)')}
           className="w-full h-28 px-3 py-2 rounded-lg text-xs resize-y outline-none focus:border-indigo-500 transition-colors bg-transparent"
           style={{ color: 'var(--text-primary)', minHeight: 80 }}
           maxLength={2000}
         />
         {isDragging && (
           <div className="absolute inset-0 flex items-center justify-center rounded-lg pointer-events-none">
-            <span className="text-xs font-bold" style={{ color }}>파일을 놓으세요</span>
+            <span className="text-xs font-bold" style={{ color }}>{t('파일을 놓으세요', 'Drop file here')}</span>
           </div>
         )}
       </div>
@@ -209,6 +213,7 @@ function DebaterCustomPanel({
   config: { styles?: DebateStyle[]; knowledge?: string; voice?: TTSVoice; model?: DebateModel }
   onChange: (c: typeof config) => void
 }) {
+  const { language, t } = useLanguage()
   const toggleStyle = (s: DebateStyle) => {
     const isRemoving = (config.styles ?? []).includes(s)
     const styleOpt = !isRemoving ? STYLE_OPTIONS.find((o) => o.value === s) : null
@@ -226,7 +231,7 @@ function DebaterCustomPanel({
 
       {/* AI 모델 */}
       <div>
-        <label className="text-xs font-semibold block mb-1.5" style={{ color: 'var(--text-muted)' }}>AI 모델</label>
+        <label className="text-xs font-semibold block mb-1.5" style={{ color: 'var(--text-muted)' }}>{t('AI 모델', 'AI Model')}</label>
         <div className="grid grid-cols-1 gap-1">
           {MODEL_OPTIONS.map((m) => (
             <button
@@ -235,11 +240,11 @@ function DebaterCustomPanel({
               onClick={() => onChange({ ...config, model: m.value })}
               className="flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all"
               style={{
-                backgroundColor: (config.model ?? 'claude-sonnet-4-6') === m.value ? `${color}20` : 'var(--bg-card)',
-                borderColor: (config.model ?? 'claude-sonnet-4-6') === m.value ? color : 'var(--border)',
+                backgroundColor: (config.model ?? 'claude-haiku-4-5-20251001') === m.value ? `${color}20` : 'var(--bg-card)',
+                borderColor: (config.model ?? 'claude-haiku-4-5-20251001') === m.value ? color : 'var(--border)',
               }}
             >
-              <span className="text-xs font-semibold" style={{ color: (config.model ?? 'claude-sonnet-4-6') === m.value ? color : 'var(--text-primary)' }}>{m.label}</span>
+              <span className="text-xs font-semibold" style={{ color: (config.model ?? 'claude-haiku-4-5-20251001') === m.value ? color : 'var(--text-primary)' }}>{m.label}</span>
               <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{m.badge}</span>
             </button>
           ))}
@@ -249,12 +254,12 @@ function DebaterCustomPanel({
       {/* 발언 스타일 + 목소리 통합 */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>발언 스타일</label>
+          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{t('발언 스타일', 'Speech Style')}</label>
           <span className="text-[10px] px-1.5 py-0.5 rounded border" style={{ borderColor: `${color}40`, color, backgroundColor: `${color}10` }}>
             🔊 {currentVoice}
           </span>
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           {STYLE_OPTIONS.map((opt) => {
             const selected = (config.styles ?? []).includes(opt.value)
             return (
@@ -268,8 +273,8 @@ function DebaterCustomPanel({
                   borderColor: selected ? color : 'var(--border)',
                 }}
               >
-                <span className="text-xs font-bold" style={{ color: selected ? color : 'var(--text-primary)' }}>{opt.label}</span>
-                <span className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>{opt.desc}</span>
+                <span className="text-xs font-bold" style={{ color: selected ? color : 'var(--text-primary)' }}>{language === 'ko' ? opt.labelKo : opt.labelEn}</span>
+                <span className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>{language === 'ko' ? opt.descKo : opt.descEn}</span>
               </button>
             )
           })}
@@ -300,19 +305,11 @@ export default function NewDebatePage() {
   const [error, setError] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [debateConfig, setDebateConfig] = useState<DebateConfig>({
-    red: { model: 'claude-sonnet-4-6' },
-    blue: { model: 'claude-sonnet-4-6' },
+    red: { model: 'claude-haiku-4-5-20251001' },
+    blue: { model: 'claude-haiku-4-5-20251001' },
   })
 
-  const [resumeDebate, setResumeDebate] = useState<{ id: string; topic: string } | null>(null)
   const [topicDragging, setTopicDragging] = useState(false)
-
-  useEffect(() => {
-    fetch('/api/debate/resume-check')
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.debate) setResumeDebate(data.debate) })
-      .catch(() => {})
-  }, [])
 
   const handleSubmit = async () => {
     if (topic.trim().length < 5) {
@@ -362,8 +359,8 @@ export default function NewDebatePage() {
           is_sample: false,
           debate_config: {
             ...debateConfig,
-            red_model: debateConfig.red?.model ?? 'claude-sonnet-4-6',
-            blue_model: debateConfig.blue?.model ?? 'claude-sonnet-4-6',
+            red_model: debateConfig.red?.model ?? 'claude-haiku-4-5-20251001',
+            blue_model: debateConfig.blue?.model ?? 'claude-haiku-4-5-20251001',
           },
         }),
       })
@@ -386,33 +383,7 @@ export default function NewDebatePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-
-      {/* 미완료 토론 재개 배너 */}
-      {resumeDebate && (
-        <div className="mb-6 p-4 rounded-xl border flex items-start gap-3" style={{ backgroundColor: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.3)' }}>
-          <span className="text-lg shrink-0">⚡</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold mb-0.5" style={{ color: 'var(--text-primary)' }}>이전 토론이 있습니다</p>
-            <p className="text-xs truncate mb-3" style={{ color: 'var(--text-muted)' }}>"{resumeDebate.topic}"</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => router.push(`/debate/${resumeDebate.id}`)}
-                className="flex-1 h-9 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors"
-              >
-                {t('계속 진행', 'Continue')}
-              </button>
-              <button
-                onClick={() => setResumeDebate(null)}
-                className="flex-1 h-9 rounded-lg text-xs border transition-colors hover:bg-white/5"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
-              >
-                {t('새로 시작', 'Start new')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="max-w-3xl mx-auto px-4 py-6 sm:py-12">
 
       <div className="text-center mb-8">
         <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>
@@ -442,7 +413,7 @@ export default function NewDebatePage() {
               const file = e.dataTransfer.files?.[0]
               if (!file) return
               const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-              if (!ALLOWED_EXTENSIONS.includes(ext)) { alert('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.'); return }
+              if (!ALLOWED_EXTENSIONS.includes(ext)) { alert(t('PDF, DOCX, TXT 파일만 첨부할 수 있습니다.', 'Only PDF, DOCX, and TXT files are supported.')); return }
               const text = await extractTextFromFile(file)
               setTopic((prev) => prev ? `${prev}\n\n${text}` : text)
             }}
@@ -463,7 +434,7 @@ export default function NewDebatePage() {
             />
             {topicDragging && (
               <div className="absolute inset-0 flex items-center justify-center rounded-xl pointer-events-none">
-                <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>파일을 놓으세요 📄</span>
+                <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{t('파일을 놓으세요 📄', 'Drop file here 📄')}</span>
               </div>
             )}
           </div>
@@ -472,7 +443,7 @@ export default function NewDebatePage() {
             <div className="ml-auto shrink-0 flex items-center gap-2">
               {/* 의제 파일 첨부 */}
               <TopicFileAttach onExtract={(text) => setTopic((prev) => prev ? `${prev}\n\n${text}` : text)} />
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{topic.length}자</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{topic.length}{t('자', ' chars')}</p>
             </div>
           </div>
         </div>
@@ -531,14 +502,14 @@ export default function NewDebatePage() {
                 <DebaterCustomPanel
                   side="red"
                   color="#ef4444"
-                  label="RED — 찬성 측"
+                  label={t('RED — 찬성 측', 'RED — For')}
                   config={debateConfig.red ?? {}}
                   onChange={(c) => setDebateConfig((prev) => ({ ...prev, red: c }))}
                 />
                 <DebaterCustomPanel
                   side="blue"
                   color="#6366f1"
-                  label="BLUE — 반대 측"
+                  label={t('BLUE — 반대 측', 'BLUE — Against')}
                   config={debateConfig.blue ?? {}}
                   onChange={(c) => setDebateConfig((prev) => ({ ...prev, blue: c }))}
                 />

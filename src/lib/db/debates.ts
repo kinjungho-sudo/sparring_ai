@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Debate, Language, DebateConfig } from '@/types'
+import type { Debate, Language, DebateConfig, DebateMode } from '@/types'
 
 export async function createDebate(params: {
   user_id: string | null
@@ -11,6 +11,7 @@ export async function createDebate(params: {
   language: Language
   is_sample?: boolean
   debate_config?: DebateConfig | null
+  mode?: DebateMode
 }): Promise<Debate> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -26,6 +27,7 @@ export async function createDebate(params: {
       is_sample: params.is_sample ?? false,
       status: 'in_progress',
       debate_config: params.debate_config ?? null,
+      mode: params.mode ?? 'debate',
     })
     .select()
     .single()

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { ReportData } from '@/types'
 import ShareButtons from './ShareButtons'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface DebateReportProps {
   report: ReportData
@@ -57,6 +58,7 @@ function parseFactChecks(raw: unknown): ReportData['fact_checks'] {
 }
 
 export default function DebateReport({ report, topic, debateId, onClose }: DebateReportProps) {
+  const { t, language } = useLanguage()
   // convergence_note에 JSON이 담긴 경우 (폴백 케이스) 재파싱 — 잘린 JSON도 괄호 보완 후 복구
   const effectiveReport: ReportData = (() => {
     if (!report.verdict && !report.speech_summaries && report.convergence_note) {
@@ -103,7 +105,9 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
 
   const winner = verdict?.winner
   const winnerColor = winner ? (winner === 'red' ? '#ef4444' : '#6366f1') : undefined
-  const winnerLabel = winner ? (winner === 'red' ? '🔴 RED 찬성' : '🔵 BLUE 반대') : null
+  const winnerLabel = winner ? (winner === 'red'
+    ? (language === 'ko' ? '🔴 RED 찬성' : '🔴 RED (For)')
+    : (language === 'ko' ? '🔵 BLUE 반대' : '🔵 BLUE (Against)')) : null
 
   return (
     <div
@@ -118,7 +122,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
         <div className="px-6 pt-5 pb-4 border-b flex items-start gap-3" style={{ borderColor: 'var(--border)' }}>
           <div className="flex-1 text-center">
             <p className="text-xs font-black uppercase tracking-widest mb-1.5" style={{ color: 'var(--accent)' }}>FINAL CONCLUSION</p>
-            <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>최종 결론</h2>
+            <h2 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{t('최종 결론', 'Final Conclusion')}</h2>
             <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--text-muted)' }}>{topic}</p>
           </div>
           {onClose && (
@@ -140,7 +144,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
           {/* 1) 발언 요약 */}
           {speechSummaries && speechSummaries.length > 0 && (
             <section className="report-section" style={{ animationDelay: '0ms' }}>
-              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>① 각 발언 요약</p>
+              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>① {t('각 발언 요약', 'Speech Summaries')}</p>
               <div className="space-y-2">
                 {speechSummaries.map((s, i) => {
                   const sp = SPEAKER_LABEL[s.speaker] ?? { label: s.speaker, color: 'var(--text-muted)' }
@@ -163,7 +167,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
           {/* 2) 핵심 논점 */}
           {keyPoints && keyPoints.length > 0 && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', animationDelay: '80ms' }}>
-              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>② 핵심 논점 정리</p>
+              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>② {t('핵심 논점 정리', 'Key Points')}</p>
               <ul className="space-y-2">
                 {keyPoints.map((pt, i) => (
                   <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -179,7 +183,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
           {factChecks && factChecks.length > 0 && (
             <section className="rounded-xl border overflow-hidden report-section" style={{ borderColor: 'rgba(245,158,11,0.3)', animationDelay: '160ms' }}>
               <div className="px-4 py-2.5 border-b" style={{ borderColor: 'rgba(245,158,11,0.2)', backgroundColor: 'rgba(245,158,11,0.08)' }}>
-                <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>③ 팩트 체크</p>
+                <p className="text-xs font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>③ {t('팩트 체크', 'Fact Check')}</p>
               </div>
               <div className="divide-y" style={{ borderColor: 'rgba(245,158,11,0.1)' }}>
                 {factChecks.map((fc, i) => {
@@ -202,7 +206,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
                           className="inline-flex items-center gap-1 text-[10px] font-semibold underline underline-offset-2 opacity-70 hover:opacity-100 transition-opacity"
                           style={{ color: '#f59e0b' }}>
                           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                          {fc.source_label ?? '출처 확인'}
+                          {fc.source_label ?? t('출처 확인', 'View source')}
                         </a>
                       )}
                     </div>
@@ -215,7 +219,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
           {/* 레거시 팩트 오류 (이전 저장 데이터 호환) */}
           {!factChecks && effectiveReport.fact_errors && effectiveReport.fact_errors.length > 0 && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'rgba(245,158,11,0.3)', backgroundColor: 'rgba(245,158,11,0.05)', animationDelay: '160ms' }}>
-              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>③ 팩트 오류</p>
+              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>③ {t('팩트 오류', 'Fact Errors')}</p>
               <ul className="space-y-1">
                 {effectiveReport.fact_errors.map((e, i) => (
                   <li key={i} className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -237,12 +241,12 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
                 }}
               >
                 <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: winner ? winnerColor : 'var(--text-muted)' }}>
-                  ④ 최종 의견
+                  ④ {t('최종 의견', 'Final Verdict')}
                 </p>
                 {winner ? (
                   <>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-black" style={{ color: winnerColor }}>{winnerLabel} 주장 우위</span>
+                      <span className="text-sm font-black" style={{ color: winnerColor }}>{winnerLabel} {t('주장 우위', 'argument prevails')}</span>
                     </div>
                     {verdict.reason && (
                       <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{verdict.reason}</p>
@@ -250,7 +254,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
                   </>
                 ) : (
                   <>
-                    <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>결론 없음 — 의견 정리</p>
+                    <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>{t('결론 없음 — 의견 정리', 'No clear winner — summary of positions')}</p>
                     {verdict.conclusion && (
                       <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{verdict.conclusion}</p>
                     )}
@@ -263,7 +267,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
           {/* 레거시 수렴 판정 호환 */}
           {!verdict && effectiveReport.convergence_note && (
             <section className="p-4 rounded-xl border report-section" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', animationDelay: '240ms' }}>
-              <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>⚖️ 수렴 판정</p>
+              <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>⚖️ {t('수렴 판정', 'Convergence Verdict')}</p>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{effectiveReport.convergence_note}</p>
             </section>
           )}
@@ -280,7 +284,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
               >
                 <div className="absolute top-3 right-4 text-2xl opacity-10 select-none">💡</div>
                 <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--accent)' }}>
-                  ⑤ 이 토론이 말하는 것
+                  ⑤ {t('이 토론이 말하는 것', 'Key Takeaway')}
                 </p>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)', fontStyle: 'italic' }}>
                   {effectiveReport.insight}
@@ -295,7 +299,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
         {debateId && (
           <div className="px-5 sm:px-6 pb-4 pt-0">
             <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>이 토론 공유하기</p>
+              <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>{t('이 토론 공유하기', 'Share this debate')}</p>
               <ShareButtons debateId={debateId} topic={topic} />
             </div>
           </div>
@@ -307,14 +311,14 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
             href="/debate/new"
             className="flex-1 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-colors flex items-center justify-center"
           >
-            새 토론 시작
+            {t('새 토론 시작', 'New Debate')}
           </Link>
           <Link
             href="/"
             className="h-11 px-4 rounded-xl border font-semibold text-sm transition-colors flex items-center justify-center hover:bg-white/5"
             style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
           >
-            홈
+            {t('홈', 'Home')}
           </Link>
           {onClose && (
             <button
@@ -322,7 +326,7 @@ export default function DebateReport({ report, topic, debateId, onClose }: Debat
               className="h-11 px-4 rounded-xl border font-semibold text-sm transition-colors flex items-center justify-center hover:bg-white/5"
               style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
             >
-              닫기
+              {t('닫기', 'Close')}
             </button>
           )}
         </div>

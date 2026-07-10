@@ -3,6 +3,7 @@ export type UserPlan = 'free' | 'pro'
 export type Speaker = 'red' | 'blue' | 'host'
 export type DebateStatus = 'in_progress' | 'completed' | 'early_end'
 export type TopicType = 'factual' | 'strategic' | 'values' | 'legal_medical_investment'
+export type DebateMode = 'debate' | 'interview'
 
 export interface Debate {
   id: string
@@ -18,6 +19,14 @@ export interface Debate {
   created_at: string
   completed_at: string | null
   debate_config?: DebateConfig | null
+  mode?: DebateMode
+}
+
+export interface InterviewConfig {
+  position: string      // 지원 포지션
+  jd?: string           // 직무기술서 (선택)
+  resume: string        // 자기소개서/이력서
+  interviewType?: 'personality' | 'technical' | 'pressure'  // 면접 유형
 }
 
 export interface Message {
@@ -86,8 +95,8 @@ export interface ValidateResult {
   message: string
 }
 
-export type DebateStyle = 'easy' | 'expert' | 'short' | 'bullet' | 'storytelling' | 'socratic'
-export type DebateModel = 'claude-sonnet-4-6' | 'gemini-2-flash' | 'gpt-4o-mini'
+export type DebateStyle = 'easy' | 'expert' | 'short' | 'bullet' | 'storytelling' | 'socratic' | 'casual'
+export type DebateModel = 'claude-haiku-4-5-20251001' | 'gpt-4o-mini'
 export type TTSVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
 
 export interface DebaterConfig {
@@ -103,6 +112,7 @@ export interface DebateConfig {
   model?: DebateModel
   red_model?: DebateModel
   blue_model?: DebateModel
+  interview?: InterviewConfig
 }
 
 export interface DebateState {

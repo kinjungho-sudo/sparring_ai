@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     red_config?: DebaterConfig
     model?: DebateModel
   }
-  const { debate_id, topic, currentRound, totalRounds, language, history, red_config, model = 'claude-sonnet-4-6' } = body
+  const { debate_id, topic, currentRound, totalRounds, language, history, red_config, model = 'claude-haiku-4-5-20251001' } = body
 
   if (debate_id) {
     const supabase = await createClient()

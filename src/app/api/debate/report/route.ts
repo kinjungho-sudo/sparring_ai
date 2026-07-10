@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now()
   let debate_id: string | undefined
   try {
-    const { topic, messages, language, debate_id: did, model = 'claude-sonnet-4-6' } = await req.json() as {
+    const { topic, messages, language, debate_id: did, model = 'claude-haiku-4-5-20251001' } = await req.json() as {
       topic: string
       messages: Array<{ speaker: string; content: string; has_fact_error: boolean; fact_error_note?: string | null }>
       language: Language

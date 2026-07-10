@@ -30,9 +30,9 @@ export default function PainPointSection() {
   const { language, t } = useLanguage()
 
   return (
-    <section className="py-24 px-6" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <section className="py-12 sm:py-24 px-4 sm:px-6" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="max-w-4xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
+        <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
 
           {/* 왼쪽: 문제 공감 */}
           <div>

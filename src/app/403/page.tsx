@@ -1,6 +1,10 @@
+'use client'
+
 import Link from 'next/link'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function ForbiddenPage() {
+  const { t } = useLanguage()
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-6">
       <div className="text-center max-w-sm">
@@ -9,16 +13,16 @@ export default function ForbiddenPage() {
           403 FORBIDDEN
         </p>
         <h1 className="text-2xl font-black mb-3" style={{ color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-          접근 권한이 없습니다
+          {t('접근 권한이 없습니다', 'Access Denied')}
         </h1>
         <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-          이 페이지는 관리자만 접근할 수 있습니다.
+          {t('이 페이지는 관리자만 접근할 수 있습니다.', 'This page is restricted to administrators only.')}
         </p>
         <Link
           href="/"
           className="inline-flex items-center gap-2 h-11 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all"
         >
-          홈으로 돌아가기
+          {t('홈으로 돌아가기', 'Back to Home')}
         </Link>
       </div>
     </div>

@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       model?: DebateModel
     }
     debate_id = body.debate_id
-    const { topic, currentRound, totalRounds, language, history, redContent, blueContent, model = 'claude-sonnet-4-6' } = body
+    const { topic, currentRound, totalRounds, language, history, redContent, blueContent, model = 'claude-haiku-4-5-20251001' } = body
 
     const prompt = buildFactCheckPrompt(
       { topic, currentRound, totalRounds, language, history },

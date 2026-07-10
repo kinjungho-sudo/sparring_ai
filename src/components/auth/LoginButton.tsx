@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface LoginButtonProps {
   redirectTo?: string
@@ -10,6 +11,7 @@ interface LoginButtonProps {
 
 export default function LoginButton({ redirectTo = '/', mode = 'login' }: LoginButtonProps) {
   const [loading, setLoading] = useState(false)
+  const { t } = useLanguage()
   const supabase = createClient()
 
   const handleGoogleLogin = async () => {
@@ -22,7 +24,9 @@ export default function LoginButton({ redirectTo = '/', mode = 'login' }: LoginB
     })
   }
 
-  const label = mode === 'signup' ? 'Google로 회원가입' : 'Google로 로그인'
+  const label = mode === 'signup'
+    ? t('Google로 회원가입', 'Sign up with Google')
+    : t('Google로 로그인', 'Sign in with Google')
 
   return (
     <button
@@ -40,7 +44,7 @@ export default function LoginButton({ redirectTo = '/', mode = 'login' }: LoginB
           <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4285F4" strokeWidth="2.5" strokeLinecap="round">
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
-          <span>연결 중...</span>
+          <span>{t('연결 중...', 'Connecting...')}</span>
         </>
       ) : (
         <>

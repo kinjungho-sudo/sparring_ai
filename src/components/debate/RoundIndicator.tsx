@@ -1,5 +1,7 @@
 'use client'
 
+import { useLanguage } from '@/contexts/LanguageContext'
+
 interface RoundIndicatorProps {
   currentRound: number
   totalRounds: number
@@ -7,6 +9,7 @@ interface RoundIndicatorProps {
 }
 
 export default function RoundIndicator({ currentRound, totalRounds, isRunning }: RoundIndicatorProps) {
+  const { t } = useLanguage()
   return (
     <div className="flex items-center justify-between py-1">
       <div className="flex items-center gap-2 sm:gap-3">
@@ -56,8 +59,8 @@ export default function RoundIndicator({ currentRound, totalRounds, isRunning }:
       {isRunning && (
         <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
           <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent)' }} />
-          <span className="hidden sm:inline">AI 토론 중...</span>
-          <span className="sm:hidden">토론 중</span>
+          <span className="hidden sm:inline">{t('AI 토론 중...', 'AI debating...')}</span>
+          <span className="sm:hidden">{t('토론 중', 'Debating')}</span>
         </div>
       )}
     </div>

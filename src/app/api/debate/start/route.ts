@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createDebate } from '@/lib/db/debates'
 import { checkAndIncrementUsage } from '@/lib/db/usage'
-import type { Language, DebateConfig } from '@/types'
+import type { Language, DebateConfig, DebateMode } from '@/types'
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, topic_type, rounds, is_virtual, disclaimer_agreed, language, is_sample, debate_config } = await req.json() as {
+    const { topic, topic_type, rounds, is_virtual, disclaimer_agreed, language, is_sample, debate_config, mode } = await req.json() as {
       topic: string
       topic_type?: string
       rounds: number
@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
       language: Language
       is_sample?: boolean
       debate_config?: DebateConfig
+      mode?: DebateMode
     }
 
     const supabase = await createClient()
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
       language,
       is_sample: is_sample ?? false,
       debate_config: debate_config ?? null,
+      mode: mode ?? 'debate',
     })
 
     return NextResponse.json({ debate })
